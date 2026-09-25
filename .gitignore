@@ -1,0 +1,26 @@
+# Node
+node_modules/
+dist/
+*.log
+.env
+
+# Flutter / Dart
+.dart_tool/
+.packages
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+*.iml
+
+# Gradle
+.gradle/
+local.properties
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# OS
+Thumbs.db
+.DS_Store
