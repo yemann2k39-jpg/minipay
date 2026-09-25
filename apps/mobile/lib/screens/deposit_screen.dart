@@ -76,7 +76,7 @@ class _DepositScreenState extends State<DepositScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final purple = const Color(0xFF6C4DF6);
+    final purple = Theme.of(context).colorScheme.primary;
     return Scaffold(
       appBar: AppBar(title: const Text('Deposit money')),
       body: SafeArea(
@@ -170,7 +170,7 @@ class _DepositScreenState extends State<DepositScreen> {
         FilledButton(
           onPressed: () => Navigator.of(context).pop(),
           style: FilledButton.styleFrom(
-              backgroundColor: const Color(0xFF6C4DF6),
+              backgroundColor: Theme.of(context).colorScheme.primary,
               minimumSize: const Size.fromHeight(52)),
           child: const Text('Back to wallet'),
         ),

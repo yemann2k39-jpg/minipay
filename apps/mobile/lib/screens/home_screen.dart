@@ -78,17 +78,16 @@ class _HomeScreenState extends State<HomeScreen> {
     if (_loading) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
-    final purple = const Color(0xFF6C4DF6);
+    final purple = Theme.of(context).colorScheme.primary;
     return Scaffold(
-      backgroundColor: const Color(0xFFF6F5FB),
+      backgroundColor: const Color(0xFFF5F7FA),
       appBar: AppBar(
-        title: const Text('MiniPay', style: TextStyle(color: Colors.white)),
-        backgroundColor: purple,
+        title: const Text('MiniPay'),
         actions: [
           IconButton(
             icon: Icon(
               _data.hasPin ? Icons.verified_user : Icons.gpp_maybe_outlined,
-              color: _data.hasPin ? Colors.lightGreenAccent : Colors.orangeAccent,
+              color: const Color(0xFF0F4C81),
             ),
             tooltip: _data.hasPin ? 'Payment PIN is set' : 'Set up payment PIN',
             onPressed: () async {
@@ -98,43 +97,44 @@ class _HomeScreenState extends State<HomeScreen> {
             },
           ),
           IconButton(
-              icon: const Icon(Icons.logout, color: Colors.white),
+              icon: const Icon(Icons.logout),
               onPressed: _logout),
         ],
       ),
-      body: RefreshIndicator(
-        onRefresh: _load,
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            // Balance card
-            Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF6C4DF6), Color(0xFF9B7BFF)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
+      body: SafeArea(
+        top: false,
+        child: RefreshIndicator(
+          onRefresh: _load,
+          child: ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              // Balance card
+              Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0F4C81),
+                  borderRadius: BorderRadius.circular(16),
                 ),
-                borderRadius: BorderRadius.circular(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Wallet balance',
+                        style: TextStyle(
+                            color: Colors.white.withAlpha(179))),
+                    const SizedBox(height: 6),
+                    Text(_balanceText,
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 36,
+                            fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 4),
+                    Text('SGD · Singapore Dollar',
+                        style: TextStyle(
+                            color: Colors.white.withAlpha(153),
+                            fontSize: 12)),
+                  ],
+                ),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('Wallet balance',
-                      style: TextStyle(color: Colors.white70)),
-                  const SizedBox(height: 6),
-                  Text(_balanceText,
-                      style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 36,
-                          fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 4),
-                  const Text('SGD · Singapore Dollar',
-                      style: TextStyle(color: Colors.white60, fontSize: 12)),
-                ],
-              ),
-            ),
             const SizedBox(height: 16),
             // Actions
             Row(
@@ -162,7 +162,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       _load();
                     },
                     style: FilledButton.styleFrom(
-                        backgroundColor: const Color(0xFF0FA958),
+                        backgroundColor: const Color(0xFF4A90D9),
                         minimumSize: const Size.fromHeight(52)),
                     icon: const Icon(Icons.qr_code_scanner),
                     label: const Text('Scan & Pay'),
@@ -239,6 +239,7 @@ class _HomeScreenState extends State<HomeScreen> {
               }),
           ],
         ),
+      ),
       ),
     );
   }

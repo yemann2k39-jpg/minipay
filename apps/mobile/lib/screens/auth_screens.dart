@@ -44,9 +44,33 @@ class _LoginScreenState extends State<LoginScreen> {
       ));
     } catch (e) {
       setState(() => _error = apiError(e).message);
+      // Real-app pattern: SnackBar floats above the keyboard, so the error
+      // is always visible without moving the form.
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(apiError(e).message),
+          backgroundColor: Colors.red.shade300,
+          behavior: SnackBarBehavior.floating,
+        ));
+      }
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  /// Red borders on the inputs while an error is showing.
+  InputDecoration _errorBorder(InputDecoration base) {
+    if (_error == null) return base;
+    return base.copyWith(
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Colors.red),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Colors.red, width: 2),
+      ),
+    );
   }
 
   @override
@@ -62,21 +86,21 @@ class _LoginScreenState extends State<LoginScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   const Icon(Icons.account_balance_wallet,
-                      size: 64, color: Color(0xFF6C4DF6)),
+                      size: 64, color: Color(0xFF0F4C81)),
                   const SizedBox(height: 8),
                   Text('MiniPay',
                       textAlign: TextAlign.center,
                       style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                          fontWeight: FontWeight.bold, color: const Color(0xFF6C4DF6))),
+                          fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.primary)),
                   const SizedBox(height: 32),
                   TextFormField(
                     controller: _email,
                     keyboardType: TextInputType.emailAddress,
-                    decoration: const InputDecoration(
+                    decoration: _errorBorder(const InputDecoration(
                       labelText: 'Email',
                       prefixIcon: Icon(Icons.email_outlined),
                       border: OutlineInputBorder(),
-                    ),
+                    )),
                     validator: (v) =>
                         v != null && v.contains('@') ? null : 'Enter a valid email',
                   ),
@@ -84,11 +108,11 @@ class _LoginScreenState extends State<LoginScreen> {
                   TextFormField(
                     controller: _password,
                     obscureText: true,
-                    decoration: const InputDecoration(
+                    decoration: _errorBorder(const InputDecoration(
                       labelText: 'Password',
                       prefixIcon: Icon(Icons.lock_outline),
                       border: OutlineInputBorder(),
-                    ),
+                    )),
                     validator: (v) =>
                         v != null && v.length >= 8 ? null : 'At least 8 characters',
                   ),
@@ -96,7 +120,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   FilledButton(
                     onPressed: _loading ? null : _submit,
                     style: FilledButton.styleFrom(
-                        backgroundColor: const Color(0xFF6C4DF6),
+                        backgroundColor: Theme.of(context).colorScheme.primary,
                         minimumSize: const Size.fromHeight(52)),
                     child: _loading
                         ? const SizedBox(
@@ -241,7 +265,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 FilledButton(
                   onPressed: _loading ? null : _submit,
                   style: FilledButton.styleFrom(
-                      backgroundColor: const Color(0xFF6C4DF6),
+                      backgroundColor: Theme.of(context).colorScheme.primary,
                       minimumSize: const Size.fromHeight(52)),
                   child: _loading
                       ? const SizedBox(

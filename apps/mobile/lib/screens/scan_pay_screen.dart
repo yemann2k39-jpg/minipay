@@ -27,7 +27,7 @@ class _ScanPayScreenState extends State<ScanPayScreen> {
       if (raw == null) continue;
       final uri = Uri.tryParse(raw);
       if (uri == null || uri.scheme != 'minipay' || uri.host != 'pay') {
-        continue; // not ours â€” keep scanning
+        continue; // not ours — keep scanning
       }
       final code = uri.queryParameters['merchant'];
       if (code == null || code.isEmpty) continue;
@@ -48,9 +48,14 @@ class _ScanPayScreenState extends State<ScanPayScreen> {
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
-        title: const Text('Scan to pay'),
+        title: const Text('Scan to pay',
+            style: TextStyle(
+                color: Colors.white,
+                fontSize: 20,
+                fontWeight: FontWeight.w600)),
+        iconTheme: const IconThemeData(color: Colors.white),
         backgroundColor: Colors.black,
-        foregroundColor: Colors.white,
+        elevation: 0,
       ),
       body: Stack(
         children: [
@@ -65,19 +70,19 @@ class _ScanPayScreenState extends State<ScanPayScreen> {
           ),
           Align(
             alignment: Alignment.bottomCenter,
-            child: Container(
-              margin: const EdgeInsets.all(24).copyWith(
-                  bottom:
-                      48), // keep clear of the system navigation bar
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.black54,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Text(
-                'Point the camera at a MiniPay merchant QR code',
-                style: TextStyle(color: Colors.white),
-                textAlign: TextAlign.center,
+            child: SafeArea(
+              child: Container(
+                margin: const EdgeInsets.all(24),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.black54,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Text(
+                  'Point the camera at a MiniPay merchant QR code',
+                  style: TextStyle(color: Colors.white),
+                  textAlign: TextAlign.center,
+                ),
               ),
             ),
           ),
@@ -208,7 +213,7 @@ class _ConfirmPaymentScreenState extends State<ConfirmPaymentScreen> {
       final rem = (cents % 100).toString().padLeft(2, '0');
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content:
-              Text('Paid S\$$dollars.$rem to $_merchantName ðŸŽ‰')));
+              Text('Paid S\$$dollars.$rem to $_merchantName 🎉')));
       Navigator.of(context).popUntil((r) => r.isFirst);
     } catch (e) {
       throw Exception(apiError(e).message);
@@ -219,17 +224,17 @@ class _ConfirmPaymentScreenState extends State<ConfirmPaymentScreen> {
   Future<void> _payWithBiometrics() async {
     setState(() => _error = null);
     final ok = await _biometricAuth();
-    if (!ok) return; // cancelled or failed â€” stay on screen
+    if (!ok) return; // cancelled or failed — stay on screen
     final stored = _localPin ?? await ApiClient.instance.readLocalPin();
     if (stored == null) {
-      // No local copy of the PIN yet â€” fall back to the PIN pad once.
+      // No local copy of the PIN yet — fall back to the PIN pad once.
       _openPinPad();
       return;
     }
     try {
       await _payWithPin(stored);
     } catch (_) {
-      // Stored PIN rejected (e.g. changed elsewhere) â€” forget it, ask for PIN.
+      // Stored PIN rejected (e.g. changed elsewhere) — forget it, ask for PIN.
       await ApiClient.instance.clearLocalPin();
       if (!mounted) return;
       setState(() => _localPin = null);
@@ -265,13 +270,15 @@ class _ConfirmPaymentScreenState extends State<ConfirmPaymentScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final purple = const Color(0xFF6C4DF6);
+    final purple = Theme.of(context).colorScheme.primary;
     return Scaffold(
       appBar: AppBar(title: const Text('Confirm payment')),
       body: _loadingInfo
           ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
+          : SafeArea(
+              top: false,
+              child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(24),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -315,7 +322,7 @@ class _ConfirmPaymentScreenState extends State<ConfirmPaymentScreen> {
                       FilledButton.icon(
                         onPressed: _payWithBiometrics,
                         style: FilledButton.styleFrom(
-                            backgroundColor: const Color(0xFF0FA958),
+                            backgroundColor: const Color(0xFF4A90D9),
                             minimumSize: const Size.fromHeight(52)),
                         icon: const Icon(Icons.fingerprint),
                         label: const Text('Pay with fingerprint'),
@@ -335,7 +342,7 @@ class _ConfirmPaymentScreenState extends State<ConfirmPaymentScreen> {
                   const SizedBox(height: 8),
                   Text(
                     _biometricAvailable && _localPin != null
-                        ? 'Fingerprint pays instantly â€” no PIN needed.'
+                        ? 'Fingerprint pays instantly — no PIN needed.'
                         : 'Confirm with your 6-digit payment PIN.',
                     style: Theme.of(context).textTheme.bodySmall,
                     textAlign: TextAlign.center,
@@ -343,6 +350,7 @@ class _ConfirmPaymentScreenState extends State<ConfirmPaymentScreen> {
                 ],
               ),
             ),
+          ),
     );
   }
 }

@@ -66,9 +66,9 @@ class _PinEntryPadState extends State<PinEntryPad> {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        const SizedBox(height: 24),
+        const SizedBox(height: 56),
         Text(widget.title, style: Theme.of(context).textTheme.titleMedium),
-        const SizedBox(height: 32),
+        const SizedBox(height: 24),
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: List.generate(6, (i) {
@@ -79,12 +79,14 @@ class _PinEntryPadState extends State<PinEntryPad> {
               height: 16,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: filled ? const Color(0xFF6C4DF6) : Colors.grey.shade300,
+                color: filled
+                    ? Theme.of(context).colorScheme.primary
+                    : Colors.grey.shade300,
               ),
             );
           }),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 28),
         if (_error != null)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -95,43 +97,46 @@ class _PinEntryPadState extends State<PinEntryPad> {
         if (_busy)
           const Expanded(child: Center(child: CircularProgressIndicator()))
         else
-          Expanded(child: _Keypad(onTap: _tap)),
+          Expanded(
+            // Keypad block: natural compact height, slightly narrower than
+            // the screen, centered in the remaining space.
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 330),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: _keyRows(),
+                ),
+              ),
+            ),
+          ),
       ],
     );
   }
-}
 
-class _Keypad extends StatelessWidget {
-  const _Keypad({required this.onTap});
-  final ValueChanged<String> onTap;
-
-  @override
-  Widget build(BuildContext context) {
+  List<Widget> _keyRows() {
     const keys = [
       ['1', '2', '3'],
       ['4', '5', '6'],
       ['7', '8', '9'],
       ['', '0', '<'],
     ];
-    return Padding(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: keys.map((row) {
-          return Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: row.map((k) {
-              if (k.isEmpty) return const SizedBox(width: 72, height: 56);
-              return _Key(
-                label: k,
-                onTap: () => onTap(k),
-                icon: k == '<' ? Icons.backspace_outlined : null,
-              );
-            }).toList(),
-          );
-        }).toList(),
-      ),
-    );
+    return keys.map((row) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: row.map((k) {
+            if (k.isEmpty) return const SizedBox(width: 72, height: 56);
+            return _Key(
+              label: k,
+              onTap: () => _tap(k),
+              icon: k == '<' ? Icons.backspace_outlined : null,
+            );
+          }).toList(),
+        ),
+      );
+    }).toList();
   }
 }
 
