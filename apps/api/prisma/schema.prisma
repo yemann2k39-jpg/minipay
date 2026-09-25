@@ -1,0 +1,152 @@
+// MiniPay — Prisma schema
+// PGW-2: users + payment PIN. Ledger tables arrive in PGW-3.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserStatus {
+  ACTIVE
+  FROZEN
+  CLOSED
+}
+
+model User {
+  id           String     @id @default(uuid()) @db.Uuid
+  email        String     @unique
+  phone        String?    @unique
+  displayName  String
+  passwordHash String
+  pinHash      String?
+  status       UserStatus @default(ACTIVE)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  refreshTokens RefreshToken[]
+  ledgerAccounts LedgerAccount[]
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid()) @db.Uuid
+  tokenHash String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String   @db.Uuid
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+// ---------------------------------------------------------------------------
+// Money engine (PGW-3): double-entry ledger + transactions + idempotency.
+// Amounts are minor units (cents) as BigInt. Ledger currency: SGD.
+// ---------------------------------------------------------------------------
+
+enum LedgerAccountKind {
+  WALLET // user-facing balance (liability)
+  TREASURY // platform money pool (asset)
+  FEES // fee collection
+  CLEARING // in-transit funds
+}
+
+model LedgerAccount {
+  id        String            @id @default(uuid()) @db.Uuid
+  kind      LedgerAccountKind
+  owner     User?             @relation(fields: [ownerId], references: [id])
+  ownerId   String?           @db.Uuid
+  currency  String            @default("SGD")
+  createdAt DateTime          @default(now())
+
+  lines JournalLine[]
+
+  @@unique([ownerId, kind, currency])
+}
+
+enum JournalEntryType {
+  DEPOSIT
+  TRANSFER
+  MERCHANT_PAYMENT
+  REQUEST_PAYMENT
+  FEE
+  ADJUSTMENT
+}
+
+model JournalEntry {
+  id             String           @id @default(uuid()) @db.Uuid
+  transactionId  String?
+  type           JournalEntryType
+  description    String
+  // Set when the entry is created as part of an idempotent operation
+  // (e.g. "pi_<stripe-id>" for a deposit credit). Prevents double credits.
+  idempotencyKey String?          @unique
+  createdAt      DateTime         @default(now())
+
+  lines JournalLine[]
+
+  @@index([transactionId])
+}
+
+enum JournalDirection {
+  DEBIT
+  CREDIT
+}
+
+model JournalLine {
+  id        String           @id @default(uuid()) @db.Uuid
+  entry     JournalEntry     @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  entryId   String           @db.Uuid
+  account   LedgerAccount    @relation(fields: [accountId], references: [id])
+  accountId String           @db.Uuid
+  direction JournalDirection
+  amount    BigInt
+
+  @@index([accountId])
+}
+
+enum TransactionType {
+  DEPOSIT
+  TRANSFER
+  MERCHANT_PAYMENT
+  REQUEST_PAYMENT
+}
+
+enum TransactionStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+model Transaction {
+  id            String           @id @default(uuid()) @db.Uuid
+  type          TransactionType
+  status        TransactionStatus @default(PENDING)
+  amount        BigInt
+  currency      String           @default("SGD")
+  // For TRANSFER / MERCHANT_PAYMENT / REQUEST_PAYMENT these are ledger account ids.
+  fromAccountId String?          @db.Uuid
+  toAccountId   String?          @db.Uuid
+  // Stripe linkage for deposits.
+  stripePaymentIntentId String?  @unique
+  meta          Json?
+  createdAt     DateTime         @default(now())
+  completedAt   DateTime?
+
+  @@index([fromAccountId, createdAt])
+  @@index([toAccountId, createdAt])
+}
+
+model IdempotencyKey {
+  key       String   @id
+  userId    String?  @db.Uuid
+  scope     String
+  response  Json
+  createdAt DateTime @default(now())
+}
+
