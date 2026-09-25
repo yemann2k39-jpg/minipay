@@ -91,6 +91,23 @@ export class AuthService {
     return { hasPin: user?.pinHash != null };
   }
 
+  /** Profile of the logged-in user (PGW-7: creation date bounds the history UI). */
+  async me(userId: string, email: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        email: true,
+        displayName: true,
+        phone: true,
+        role: true,
+        status: true,
+        createdAt: true,
+      },
+    });
+    return { ...user, email };
+  }
+
   /** Verify a payment PIN. 401 is reserved for session/auth failures —
    *  a wrong PIN is a business rejection (400), not an authentication failure. */
   async verifyPin(userId: string, pin: string) {
@@ -109,7 +126,11 @@ export class AuthService {
   private async issueTokens(userId: string, email: string, hasPin?: boolean) {
     // jti makes every token unique even when issued in the same second.
     const jti = randomBytes(16).toString('hex');
-    const payload = { sub: userId, email, jti };
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { role: true },
+    });
+    const payload = { sub: userId, email, role: user?.role ?? 'USER' };
     const accessToken = await this.jwt.signAsync(payload, { expiresIn: ACCESS_TTL });
     const refreshToken = await this.jwt.signAsync(payload, {
       secret: process.env.JWT_REFRESH_SECRET,
@@ -128,7 +149,7 @@ export class AuthService {
     return {
       accessToken,
       refreshToken,
-      user: { id: userId, email, hasPin: hasPin ?? false },
+      user: { id: userId, email, hasPin: hasPin ?? false, role: user?.role ?? 'USER' },
     };
   }
 }

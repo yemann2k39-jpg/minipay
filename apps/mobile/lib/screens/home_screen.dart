@@ -5,8 +5,10 @@ import 'package:dio/dio.dart';
 import 'package:minipay/api/api_client.dart';
 import 'package:minipay/screens/bootstrap.dart';
 import 'package:minipay/screens/deposit_screen.dart';
+import 'package:minipay/screens/history_screen.dart';
 import 'package:minipay/screens/notifications_screen.dart';
 import 'package:minipay/screens/pin_setup.dart';
+import 'package:minipay/screens/report_screen.dart';
 import 'package:minipay/screens/requests_screen.dart';
 import 'package:minipay/screens/scan_pay_screen.dart';
 import 'package:minipay/screens/transfer_screen.dart';
@@ -117,6 +119,12 @@ class _HomeScreenState extends State<HomeScreen> {
       appBar: AppBar(
         title: const Text('MiniPay'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.insights),
+            tooltip: 'Monthly report',
+            onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const ReportScreen())),
+          ),
           IconButton(
             icon: Badge(
               isLabelVisible: _unread > 0,
@@ -263,11 +271,21 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ],
             const SizedBox(height: 16),
-            Text('Recent activity',
-                style: Theme.of(context)
-                    .textTheme
-                    .titleMedium
-                    ?.copyWith(fontWeight: FontWeight.bold)),
+            Row(
+              children: [
+                Text('Recent activity',
+                    style: Theme.of(context)
+                        .textTheme
+                        .titleMedium
+                        ?.copyWith(fontWeight: FontWeight.bold)),
+                const Spacer(),
+                TextButton(
+                  onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const HistoryScreen())),
+                  child: const Text('View all'),
+                ),
+              ],
+            ),
             const SizedBox(height: 8),
             if (_data.recent.isEmpty)
               const Padding(

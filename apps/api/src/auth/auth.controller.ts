@@ -31,6 +31,15 @@ export class AuthController {
     return this.auth.logout(dto.refreshToken);
   }
 
+  @Get('me')
+  @UseGuards(JwtAuthGuard)
+  me(
+    @CurrentUser('userId') userId: string,
+    @CurrentUser('email') email: string,
+  ) {
+    return this.auth.me(userId, email);
+  }
+
   @Post('pin')
   @UseGuards(JwtAuthGuard)
   setupPin(@CurrentUser('userId') userId: string, @Body() dto: SetupPinDto) {

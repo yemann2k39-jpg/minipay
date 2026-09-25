@@ -56,7 +56,7 @@ export class WalletService {
         OR: [{ fromAccountId: wallet.id }, { toAccountId: wallet.id }],
       },
       orderBy: { createdAt: 'desc' },
-      take: 20,
+      take: 10, // home shows a short preview; full list is in History
     });
     return {
       walletId: wallet.id,
@@ -152,6 +152,140 @@ export class WalletService {
       type: tx.type,
       amount: tx.amount.toString(),
       currency: tx.currency,
+    };
+  }
+
+  /**
+   * Paginated history with optional filters (PGW-7).
+   * type: DEPOSIT | TRANSFER | MERCHANT_PAYMENT | REQUEST_PAYMENT
+   * year/month: filter to that calendar month.
+   */
+  async getHistory(
+    userId: string,
+    opts: {
+      type?: string;
+      year?: number;
+      month?: number;
+      q?: string;
+      skip: number;
+      take: number;
+    },
+  ) {
+    const wallet = await this.ensureWallet(userId);
+    const where: any = {
+      OR: [{ fromAccountId: wallet.id }, { toAccountId: wallet.id }],
+    };
+    if (opts.type && opts.type !== 'ALL') where.type = opts.type;
+    if (opts.year && opts.month) {
+      const start = new Date(Date.UTC(opts.year, opts.month - 1, 1));
+      const end = new Date(Date.UTC(opts.year, opts.month, 1));
+      where.createdAt = { gte: start, lt: end };
+    }
+    const rows = await this.prisma.transaction.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+    });
+    // Resolve counterparty names for transfers/requests.
+    const accountIds = [
+      ...new Set(
+        rows
+          .flatMap((t) => [t.fromAccountId, t.toAccountId])
+          .filter((x): x is string => !!x),
+      ),
+    ];
+    const accounts = await this.prisma.ledgerAccount.findMany({
+      where: { id: { in: accountIds } },
+      select: {
+        id: true,
+        kind: true,
+        owner: { select: { displayName: true } },
+        merchant: { select: { name: true } },
+      },
+    });
+    const nameOf = (accountId?: string | null) => {
+      if (!accountId) return null;
+      const a = accounts.find((x) => x.id === accountId);
+      if (!a) return null;
+      return a.merchant?.name ?? a.owner?.displayName ?? a.kind;
+    };
+    // Search by counterparty name (case-insensitive) after resolving names.
+    const q = opts.q?.trim().toLowerCase();
+    const filtered = q
+      ? rows.filter((t) => {
+          const name = (nameOf(t.toAccountId === wallet.id ? t.fromAccountId : t.toAccountId) ?? '')
+            .toLowerCase();
+          return name.includes(q);
+        })
+      : rows;
+    const items = filtered.slice(opts.skip, opts.skip + opts.take);
+    return {
+      total: filtered.length,
+      items: items.map((t) => ({
+        id: t.id,
+        type: t.type,
+        status: t.status,
+        amount: t.amount.toString(),
+        currency: t.currency,
+        direction: t.toAccountId === wallet.id ? 'IN' : 'OUT',
+        counterparty:
+          nameOf(t.toAccountId === wallet.id ? t.fromAccountId : t.toAccountId) ??
+          null,
+        createdAt: t.createdAt,
+      })),
+    };
+  }
+
+  /** Monthly report (PGW-7): totals per type + daily in/out series for charts. */
+  async getMonthlyReport(userId: string, year: number, month: number) {
+    const wallet = await this.ensureWallet(userId);
+    const start = new Date(Date.UTC(year, month - 1, 1));
+    const end = new Date(Date.UTC(year, month, 1));
+    const rows = await this.prisma.transaction.findMany({
+      where: {
+        OR: [{ fromAccountId: wallet.id }, { toAccountId: wallet.id }],
+        createdAt: { gte: start, lt: end },
+        status: 'COMPLETED',
+      },
+    });
+    const byType: Record<string, { inflow: bigint; outflow: bigint }> = {};
+    const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
+    const daily: { day: number; inflow: bigint; outflow: bigint }[] = Array.from(
+      { length: daysInMonth },
+      (_, i) => ({ day: i + 1, inflow: 0n, outflow: 0n }),
+    );
+    for (const t of rows) {
+      const isIn = t.toAccountId === wallet.id;
+      const bucket = (byType[t.type] ??= { inflow: 0n, outflow: 0n });
+      if (isIn) bucket.inflow += t.amount;
+      else bucket.outflow += t.amount;
+      const day = new Date(t.createdAt).getUTCDate();
+      if (isIn) daily[day - 1].inflow += t.amount;
+      else daily[day - 1].outflow += t.amount;
+    }
+    const totals = {
+      inflow: Object.values(byType).reduce((s, b) => s + b.inflow, 0n),
+      outflow: Object.values(byType).reduce((s, b) => s + b.outflow, 0n),
+    };
+    const byTypeOut = Object.fromEntries(
+      Object.entries(byType).map(([k, v]) => [
+        k,
+        { inflow: v.inflow.toString(), outflow: v.outflow.toString() },
+      ]),
+    );
+    return {
+      year,
+      month,
+      totals: {
+        inflow: totals.inflow.toString(),
+        outflow: totals.outflow.toString(),
+        net: (totals.inflow - totals.outflow).toString(),
+      },
+      byType: byTypeOut,
+      daily: daily.map((d) => ({
+        day: d.day,
+        inflow: d.inflow.toString(),
+        outflow: d.outflow.toString(),
+      })),
     };
   }
 
