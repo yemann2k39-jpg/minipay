@@ -7,6 +7,7 @@ import 'package:minipay/screens/bootstrap.dart';
 import 'package:minipay/screens/deposit_screen.dart';
 import 'package:minipay/screens/notifications_screen.dart';
 import 'package:minipay/screens/pin_setup.dart';
+import 'package:minipay/screens/requests_screen.dart';
 import 'package:minipay/screens/scan_pay_screen.dart';
 import 'package:minipay/screens/transfer_screen.dart';
 
@@ -228,6 +229,20 @@ class _HomeScreenState extends State<HomeScreen> {
                   minimumSize: const Size.fromHeight(52)),
               icon: const Icon(Icons.send),
               label: const Text('Transfer'),
+            ),
+            const SizedBox(height: 12),
+            FilledButton.tonalIcon(
+              onPressed: () async {
+                await Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const RequestsScreen()));
+                _load();
+              },
+              style: FilledButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  foregroundColor: Theme.of(context).colorScheme.primary,
+                  minimumSize: const Size.fromHeight(52)),
+              icon: const Icon(Icons.request_quote),
+              label: const Text('Request money'),
             ),
             if (!_data.hasPin) ...[
               const SizedBox(height: 12),

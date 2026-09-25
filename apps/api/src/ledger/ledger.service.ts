@@ -125,8 +125,10 @@ export class LedgerService {
             );
           const signedDelta = isAsset ? delta : -delta;
           if (naturalBalance + signedDelta < 0n) {
+            const fmt = (minor: bigint) =>
+              `SGD ${(Number(minor) / 100).toFixed(2)}`;
             throw new BadRequestException(
-              `Insufficient funds in ${acc.kind.toLowerCase()} account (balance ${naturalBalance})`,
+              `Insufficient funds — ${acc.kind === 'WALLET' ? 'wallet balance' : 'account balance'} is ${fmt(naturalBalance)} but this needs ${fmt(-signedDelta)}`,
             );
           }
         }

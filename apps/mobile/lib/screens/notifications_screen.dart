@@ -58,6 +58,12 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         return Icons.arrow_upward;
       case 'DEPOSIT_COMPLETED':
         return Icons.savings;
+      case 'REQUEST_RECEIVED':
+        return Icons.request_page;
+      case 'REQUEST_PAID':
+        return Icons.task_alt;
+      case 'REQUEST_DECLINED':
+        return Icons.do_not_disturb_on;
       default:
         return Icons.notifications;
     }
