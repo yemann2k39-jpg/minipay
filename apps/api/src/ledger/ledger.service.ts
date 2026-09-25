@@ -96,12 +96,13 @@ export class LedgerService {
         }
 
         // Balance check per account, respecting its natural direction:
-        //  - Assets  (TREASURY, FEES, CLEARING): debits increase → balance = debits - credits
-        //  - Liability (WALLET): credits increase → balance = credits - debits
+        //  - Assets (TREASURY, FEES, CLEARING): debits increase → balance = debits - credits
+        //  - Liabilities (WALLET, MERCHANT): credits increase → balance = credits - debits
         // No account may go below zero in its natural direction.
+        const ASSET_KINDS = new Set(['TREASURY', 'FEES', 'CLEARING']);
         for (const accountId of accountIds) {
           const acc = accounts.find((a) => a.id === accountId)!;
-          const isAsset = acc.kind !== 'WALLET';
+          const isAsset = ASSET_KINDS.has(acc.kind);
           const [debitSum, creditSum] = await Promise.all([
             tx.journalLine.aggregate({
               where: { accountId, direction: 'DEBIT' },

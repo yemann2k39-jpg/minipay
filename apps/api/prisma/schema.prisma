@@ -31,6 +31,20 @@ model User {
   ledgerAccounts LedgerAccount[]
 }
 
+model LedgerAccount {
+  id        String            @id @default(uuid()) @db.Uuid
+  kind      LedgerAccountKind
+  owner     User?             @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  ownerId   String?           @db.Uuid
+  merchant  Merchant?
+  currency  String            @default("SGD")
+  createdAt DateTime          @default(now())
+
+  lines JournalLine[]
+
+  @@unique([ownerId, kind, currency])
+}
+
 model RefreshToken {
   id        String   @id @default(uuid()) @db.Uuid
   tokenHash String   @unique
@@ -53,19 +67,7 @@ enum LedgerAccountKind {
   TREASURY // platform money pool (asset)
   FEES // fee collection
   CLEARING // in-transit funds
-}
-
-model LedgerAccount {
-  id        String            @id @default(uuid()) @db.Uuid
-  kind      LedgerAccountKind
-  owner     User?             @relation(fields: [ownerId], references: [id])
-  ownerId   String?           @db.Uuid
-  currency  String            @default("SGD")
-  createdAt DateTime          @default(now())
-
-  lines JournalLine[]
-
-  @@unique([ownerId, kind, currency])
+  MERCHANT // merchant settlement balance (liability)
 }
 
 enum JournalEntryType {
@@ -148,5 +150,19 @@ model IdempotencyKey {
   scope     String
   response  Json
   createdAt DateTime @default(now())
+}
+
+// ---------------------------------------------------------------------------
+// Merchants (PGW-4): QR-payable businesses identified by a short code.
+// ---------------------------------------------------------------------------
+
+model Merchant {
+  id         String   @id @default(uuid()) @db.Uuid
+  code       String   @unique // e.g. "MP-KOPI01" — what goes in the QR
+  name       String
+  status     UserStatus @default(ACTIVE)
+  ledgerAccountId String @unique @db.Uuid
+  ledgerAccount LedgerAccount @relation(fields: [ledgerAccountId], references: [id])
+  createdAt  DateTime @default(now())
 }
 

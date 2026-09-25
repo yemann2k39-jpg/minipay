@@ -91,12 +91,13 @@ export class AuthService {
     return { hasPin: user?.pinHash != null };
   }
 
-  /** Verify a payment PIN. Returns user id when valid. Used by money endpoints from PGW-3 on. */
+  /** Verify a payment PIN. 401 is reserved for session/auth failures —
+   *  a wrong PIN is a business rejection (400), not an authentication failure. */
   async verifyPin(userId: string, pin: string) {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user?.pinHash) throw new BadRequestException('No payment PIN set up');
     if (!(await bcrypt.compare(pin, user.pinHash))) {
-      throw new UnauthorizedException('Incorrect PIN');
+      throw new BadRequestException('Incorrect PIN');
     }
     return { success: true };
   }

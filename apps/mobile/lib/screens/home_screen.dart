@@ -4,6 +4,7 @@ import 'package:minipay/api/api_client.dart';
 import 'package:minipay/screens/bootstrap.dart';
 import 'package:minipay/screens/deposit_screen.dart';
 import 'package:minipay/screens/pin_setup.dart';
+import 'package:minipay/screens/scan_pay_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -154,16 +155,17 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: FilledButton.tonalIcon(
-                    onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                          content: Text(
-                              'Transfers arrive in PGW-5 🙂')));
+                  child: FilledButton.icon(
+                    onPressed: () async {
+                      await Navigator.of(context).push(
+                          MaterialPageRoute(builder: (_) => const ScanPayScreen()));
+                      _load();
                     },
                     style: FilledButton.styleFrom(
+                        backgroundColor: const Color(0xFF0FA958),
                         minimumSize: const Size.fromHeight(52)),
-                    icon: const Icon(Icons.send),
-                    label: const Text('Send'),
+                    icon: const Icon(Icons.qr_code_scanner),
+                    label: const Text('Scan & Pay'),
                   ),
                 ),
               ],

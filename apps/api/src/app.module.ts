@@ -4,8 +4,9 @@ import { AuthModule } from './auth/auth.module';
 import { LedgerModule } from './ledger/ledger.module';
 import { WalletModule } from './wallet/wallet.module';
 import { PaymentsModule } from './payments/payments.module';
+import { MerchantsModule } from './merchants/merchants.module';
 
 @Module({
-  imports: [PrismaModule, AuthModule, LedgerModule, WalletModule, PaymentsModule],
+  imports: [PrismaModule, AuthModule, LedgerModule, WalletModule, PaymentsModule, MerchantsModule],
 })
 export class AppModule {}

@@ -1,15 +1,21 @@
 import {
   BadRequestException,
+  Body,
   Controller,
   Post,
   RawBodyRequest,
   Req,
   Logger,
+  UseGuards,
 } from '@nestjs/common';
 import type { Request } from 'express';
 import type Stripe from 'stripe';
 import { InjectStripeClient } from '../stripe/stripe.decorator';
 import { WalletService } from '../wallet/wallet.service';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { CurrentUser } from '../auth/current-user.decorator';
+import { PaymentsService } from './payments.service';
+import { MerchantPayDto } from './merchant-pay.dto';
 
 @Controller('payments')
 export class PaymentsController {
@@ -18,7 +24,23 @@ export class PaymentsController {
   constructor(
     @InjectStripeClient() private stripe: Stripe,
     private wallet: WalletService,
+    private payments: PaymentsService,
   ) {}
+
+  /** User pays a merchant QR code from their wallet. */
+  @Post('merchant/pay')
+  @UseGuards(JwtAuthGuard)
+  payMerchant(
+    @CurrentUser('userId') userId: string,
+    @Body() dto: MerchantPayDto,
+  ) {
+    return this.payments.payMerchant(
+      userId,
+      dto.merchantCode,
+      BigInt(dto.amount),
+      dto.pin,
+    );
+  }
 
   /**
    * Stripe webhook — the single source of truth for deposit completion.

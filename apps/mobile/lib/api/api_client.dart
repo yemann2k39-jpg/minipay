@@ -33,6 +33,14 @@ class ApiClient {
   Future<bool> hasSession() async {
     return await refreshToken != null;
   }
+
+  /// Local copy of the payment PIN, used to authorize payments after a
+  /// successful biometric check (device Keystore-encrypted storage).
+  /// Never leaves the device except inside a normal payment request.
+  Future<void> saveLocalPin(String pin) =>
+      _storage.write(key: 'local_payment_pin', value: pin);
+  Future<String?> readLocalPin() => _storage.read(key: 'local_payment_pin');
+  Future<void> clearLocalPin() => _storage.delete(key: 'local_payment_pin');
 }
 
 class _AuthInterceptor extends Interceptor {
@@ -52,7 +60,10 @@ class _AuthInterceptor extends Interceptor {
 
   @override
   void onError(DioException err, ErrorInterceptorHandler handler) async {
-    if (err.response?.statusCode == 401 && !_refreshing) {
+    // 401 from these endpoints IS the auth error itself — never refresh (loops).
+    final path = err.requestOptions.path;
+    final isAuthCall = path == '/auth/refresh' || path == '/auth/login';
+    if (err.response?.statusCode == 401 && !_refreshing && !isAuthCall) {
       _refreshing = true;
       try {
         final refresh = await _client.refreshToken;
