@@ -5,7 +5,8 @@ import { PrismaService } from '../prisma/prisma.service';
 export class ContactsService {
   constructor(private prisma: PrismaService) {}
 
-  /** Find a user by email or phone (for adding a contact). */
+  /** Find a user by email or phone (for adding a contact / transfers).
+   *  FROZEN users are findable — they may still receive money. */
   async resolveUser(query: string) {
     const q = query.trim().toLowerCase();
     if (!q) throw new BadRequestException('Enter an email or phone number');
@@ -13,7 +14,7 @@ export class ContactsService {
       where: { OR: [{ email: q }, { phone: query.trim() }] },
       select: { id: true, displayName: true, email: true, phone: true, status: true },
     });
-    if (!user || user.status !== 'ACTIVE') {
+    if (!user || (user.status !== 'ACTIVE' && user.status !== 'FROZEN')) {
       throw new NotFoundException('No MiniPay user found with that email or phone');
     }
     return user;

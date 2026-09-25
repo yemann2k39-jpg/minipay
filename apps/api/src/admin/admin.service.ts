@@ -63,6 +63,16 @@ export class AdminService {
       where: { id: userId },
       data: { status: frozen ? 'FROZEN' : 'ACTIVE' },
     });
+    await this.prisma.notification.create({
+      data: {
+        userId,
+        type: frozen ? 'ACCOUNT_FROZEN' : 'ACCOUNT_UNFROZEN',
+        title: frozen ? 'Account frozen' : 'Account restored',
+        body: frozen
+          ? 'Your account has been frozen. Sending, receiving and top-ups are disabled while frozen. Contact support if you think this is a mistake.'
+          : 'Your account is active again. All features are available.',
+      },
+    });
     return { success: true };
   }
 

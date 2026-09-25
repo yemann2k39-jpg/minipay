@@ -23,6 +23,15 @@ export class RequestsService {
   ) {}
 
   async create(requesterId: string, toEmail: string, amount: bigint, note?: string) {
+    const requester = await this.prisma.user.findUnique({
+      where: { id: requesterId },
+      select: { displayName: true, status: true },
+    });
+    if (requester?.status === 'FROZEN') {
+      throw new ForbiddenException(
+        'Your account is frozen. You cannot create requests — contact support for help.',
+      );
+    }
     if (amount < MIN_AMOUNT || amount > MAX_AMOUNT) {
       throw new BadRequestException('Amount must be between SGD 1.00 and 5,000.00');
     }
@@ -30,7 +39,6 @@ export class RequestsService {
     if (payerUser.id === requesterId) {
       throw new BadRequestException('You cannot request money from yourself');
     }
-    const requester = await this.prisma.user.findUnique({ where: { id: requesterId } });
 
     const req = await this.prisma.moneyRequest.create({
       data: {
@@ -98,6 +106,16 @@ export class RequestsService {
     if (mr.payerId !== payerId) throw new ForbiddenException('Not your request');
     if (mr.status !== 'PENDING') {
       throw new BadRequestException(`Request is already ${mr.status}`);
+    }
+
+    const payerUserFull = await this.prisma.user.findUnique({
+      where: { id: payerId },
+      select: { displayName: true, status: true },
+    });
+    if (payerUserFull?.status === 'FROZEN') {
+      throw new ForbiddenException(
+        'Your account is frozen. You cannot pay requests — contact support for help.',
+      );
     }
 
     await this.auth.verifyPin(payerId, pin);

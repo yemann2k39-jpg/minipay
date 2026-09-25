@@ -41,6 +41,11 @@ export class PaymentsService {
     if (!wallet) throw new NotFoundException('Wallet not found');
 
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (user?.status === 'FROZEN') {
+      throw new ForbiddenException(
+        'Your account is frozen. You cannot make payments — contact support for help.',
+      );
+    }
     if (user?.status !== 'ACTIVE') throw new ForbiddenException('Account is not active');
 
     // Payment PIN authorises the money movement.

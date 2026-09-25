@@ -1,4 +1,4 @@
-import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { LedgerAccountKind, TransactionStatus, TransactionType } from '@prisma/client';
 import Stripe from 'stripe';
 import { PrismaService } from '../prisma/prisma.service';
@@ -80,6 +80,15 @@ export class WalletService {
    * The wallet is credited ONLY by the webhook when Stripe reports success.
    */
   async createDepositIntent(userId: string, amount: bigint) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { status: true },
+    });
+    if (user?.status === 'FROZEN') {
+      throw new ForbiddenException(
+        'Your account is frozen. You cannot top up — contact support for help.',
+      );
+    }
     if (amount < MIN_DEPOSIT || amount > MAX_DEPOSIT) {
       throw new BadRequestException(
         `Deposit must be between SGD ${Number(MIN_DEPOSIT) / 100} and SGD ${Number(MAX_DEPOSIT) / 100}`,
@@ -302,6 +311,21 @@ export class WalletService {
 
     const walletId = tx.toAccountId;
     if (!walletId) return { handled: false, reason: 'no destination account' };
+
+    // Belt & braces: if the account got frozen between paying and the webhook
+    // arriving, do not credit — record it as failed instead.
+    const owner = await this.prisma.ledgerAccount.findUnique({
+      where: { id: walletId },
+      select: { owner: { select: { status: true } } },
+    });
+    if (owner?.owner?.status === 'FROZEN') {
+      await this.prisma.transaction.update({
+        where: { id: tx.id },
+        data: { status: TransactionStatus.FAILED, meta: { failReason: 'account frozen' } },
+      });
+      return { handled: true, rejected: 'account frozen' };
+    }
+
     const treasury = await this.ensureTreasury();
 
     await this.ledger.post({

@@ -43,7 +43,11 @@ export class AuthService {
     if (!user || !(await bcrypt.compare(dto.password, user.passwordHash))) {
       throw new UnauthorizedException('Invalid email or password');
     }
-    if (user.status !== 'ACTIVE') throw new UnauthorizedException('Account is not active');
+    // FROZEN accounts can still log in (read-only: balance + history) —
+    // money-movement endpoints reject them individually. CLOSED cannot.
+    if (user.status === 'CLOSED') {
+      throw new UnauthorizedException('This account is closed');
+    }
     return this.issueTokens(user.id, user.email, user.pinHash !== null);
   }
 

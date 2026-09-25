@@ -30,6 +30,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final _data = _WalletData();
   bool _loading = true;
   int _unread = 0;
+  bool _frozen = false;
   Timer? _pollTimer;
 
   @override
@@ -66,6 +67,12 @@ class _HomeScreenState extends State<HomeScreen> {
       try {
         final pinRes = await ApiClient.instance.dio.get('/auth/pin/status');
         _data.hasPin = pinRes.data['hasPin'] as bool;
+      } on DioException catch (e) {
+        if (e.response?.statusCode != 401) rethrow;
+      }
+      try {
+        final me = await ApiClient.instance.dio.get('/auth/me');
+        _frozen = me.data['status'] == 'FROZEN';
       } on DioException catch (e) {
         if (e.response?.statusCode != 401) rethrow;
       }
@@ -190,18 +197,48 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
             const SizedBox(height: 16),
-            // Actions
+            if (_frozen) ...[
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFDECEA),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFE57373)),
+                ),
+                child: const Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.report, color: Color(0xFFC62828), size: 22),
+                    SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'Your account is frozen. You can view your balance '
+                        'and history, but sending, payments and top-ups are '
+                        'disabled. Contact support if you think this is a '
+                        'mistake.',
+                        style: TextStyle(color: Color(0xFFB71C1C), fontSize: 13),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
+            // Actions (disabled while frozen)
             Row(
               children: [
                 Expanded(
                   child: FilledButton.icon(
-                    onPressed: () async {
-                      await Navigator.of(context).push(MaterialPageRoute(
-                          builder: (_) => const DepositScreen()));
-                      _load();
-                    },
+                    onPressed: _frozen
+                        ? null
+                        : () async {
+                            await Navigator.of(context).push(MaterialPageRoute(
+                                builder: (_) => const DepositScreen()));
+                            _load();
+                          },
                     style: FilledButton.styleFrom(
                         backgroundColor: purple,
+                        disabledBackgroundColor: Colors.grey.shade300,
                         minimumSize: const Size.fromHeight(52)),
                     icon: const Icon(Icons.add_card),
                     label: const Text('Deposit'),
@@ -210,13 +247,17 @@ class _HomeScreenState extends State<HomeScreen> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: FilledButton.icon(
-                    onPressed: () async {
-                      await Navigator.of(context).push(
-                          MaterialPageRoute(builder: (_) => const ScanPayScreen()));
-                      _load();
-                    },
+                    onPressed: _frozen
+                        ? null
+                        : () async {
+                            await Navigator.of(context).push(
+                                MaterialPageRoute(
+                                    builder: (_) => const ScanPayScreen()));
+                            _load();
+                          },
                     style: FilledButton.styleFrom(
                         backgroundColor: const Color(0xFF4A90D9),
+                        disabledBackgroundColor: Colors.grey.shade300,
                         minimumSize: const Size.fromHeight(52)),
                     icon: const Icon(Icons.qr_code_scanner),
                     label: const Text('Scan'),
@@ -226,28 +267,36 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             const SizedBox(height: 12),
             FilledButton.tonalIcon(
-              onPressed: () async {
-                await Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const TransferScreen()));
-                _load();
-              },
+              onPressed: _frozen
+                  ? null
+                  : () async {
+                      await Navigator.of(context).push(
+                          MaterialPageRoute(
+                              builder: (_) => const TransferScreen()));
+                      _load();
+                    },
               style: FilledButton.styleFrom(
                   backgroundColor: Colors.white,
                   foregroundColor: Theme.of(context).colorScheme.primary,
+                  disabledForegroundColor: Colors.grey,
                   minimumSize: const Size.fromHeight(52)),
               icon: const Icon(Icons.send),
               label: const Text('Transfer'),
             ),
             const SizedBox(height: 12),
             FilledButton.tonalIcon(
-              onPressed: () async {
-                await Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const RequestsScreen()));
-                _load();
-              },
+              onPressed: _frozen
+                  ? null
+                  : () async {
+                      await Navigator.of(context).push(
+                          MaterialPageRoute(
+                              builder: (_) => const RequestsScreen()));
+                      _load();
+                    },
               style: FilledButton.styleFrom(
                   backgroundColor: Colors.white,
                   foregroundColor: Theme.of(context).colorScheme.primary,
+                  disabledForegroundColor: Colors.grey,
                   minimumSize: const Size.fromHeight(52)),
               icon: const Icon(Icons.request_quote),
               label: const Text('Request money'),

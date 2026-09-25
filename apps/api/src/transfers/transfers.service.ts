@@ -49,13 +49,19 @@ export class TransfersService {
     }
 
     const sender = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (sender?.status === 'FROZEN') {
+      throw new ForbiddenException(
+        'Your account is frozen. You cannot send money — contact support for help.',
+      );
+    }
     if (sender?.status !== 'ACTIVE') {
       throw new ForbiddenException('Account is not active');
     }
     const receiver = await this.prisma.user.findUnique({
       where: { id: toUserId },
     });
-    if (!receiver || receiver.status !== 'ACTIVE') {
+    // FROZEN users may still receive money; only closed accounts cannot.
+    if (!receiver || receiver.status === 'CLOSED') {
       throw new NotFoundException('Recipient not found');
     }
 
