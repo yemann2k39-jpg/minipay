@@ -1,10 +1,14 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
 import 'package:minipay/api/api_client.dart';
 import 'package:minipay/screens/bootstrap.dart';
 import 'package:minipay/screens/deposit_screen.dart';
+import 'package:minipay/screens/notifications_screen.dart';
 import 'package:minipay/screens/pin_setup.dart';
 import 'package:minipay/screens/scan_pay_screen.dart';
+import 'package:minipay/screens/transfer_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -22,11 +26,32 @@ class _WalletData {
 class _HomeScreenState extends State<HomeScreen> {
   final _data = _WalletData();
   bool _loading = true;
+  int _unread = 0;
+  Timer? _pollTimer;
 
   @override
   void initState() {
     super.initState();
     _load();
+    // Keep the notification badge responsive: light poll every 15s.
+    _pollTimer = Timer.periodic(const Duration(seconds: 15), (_) {
+      if (mounted) _refreshUnread();
+    });
+  }
+
+  @override
+  void dispose() {
+    _pollTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _refreshUnread() async {
+    try {
+      final unread =
+          await ApiClient.instance.dio.get('/notifications/unread-count');
+      if (!mounted) return;
+      setState(() => _unread = unread.data['count'] as int);
+    } catch (_) {}
   }
 
   Future<void> _load() async {
@@ -38,6 +63,13 @@ class _HomeScreenState extends State<HomeScreen> {
       try {
         final pinRes = await ApiClient.instance.dio.get('/auth/pin/status');
         _data.hasPin = pinRes.data['hasPin'] as bool;
+      } on DioException catch (e) {
+        if (e.response?.statusCode != 401) rethrow;
+      }
+      try {
+        final unread = await ApiClient.instance.dio
+            .get('/notifications/unread-count');
+        _unread = unread.data['count'] as int;
       } on DioException catch (e) {
         if (e.response?.statusCode != 401) rethrow;
       }
@@ -84,6 +116,19 @@ class _HomeScreenState extends State<HomeScreen> {
       appBar: AppBar(
         title: const Text('MiniPay'),
         actions: [
+          IconButton(
+            icon: Badge(
+              isLabelVisible: _unread > 0,
+              label: Text(_unread > 9 ? '9+' : '$_unread'),
+              child: const Icon(Icons.notifications_outlined),
+            ),
+            tooltip: 'Notifications',
+            onPressed: () async {
+              await Navigator.of(context).push(MaterialPageRoute(
+                  builder: (_) => const NotificationsScreen()));
+              _load();
+            },
+          ),
           IconButton(
             icon: Icon(
               _data.hasPin ? Icons.verified_user : Icons.gpp_maybe_outlined,
@@ -165,10 +210,24 @@ class _HomeScreenState extends State<HomeScreen> {
                         backgroundColor: const Color(0xFF4A90D9),
                         minimumSize: const Size.fromHeight(52)),
                     icon: const Icon(Icons.qr_code_scanner),
-                    label: const Text('Scan & Pay'),
+                    label: const Text('Scan'),
                   ),
                 ),
               ],
+            ),
+            const SizedBox(height: 12),
+            FilledButton.tonalIcon(
+              onPressed: () async {
+                await Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const TransferScreen()));
+                _load();
+              },
+              style: FilledButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  foregroundColor: Theme.of(context).colorScheme.primary,
+                  minimumSize: const Size.fromHeight(52)),
+              icon: const Icon(Icons.send),
+              label: const Text('Transfer'),
             ),
             if (!_data.hasPin) ...[
               const SizedBox(height: 12),

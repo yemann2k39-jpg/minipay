@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:minipay/api/api_client.dart';
 import 'package:minipay/screens/home_screen.dart';
 
@@ -37,6 +37,7 @@ class _LoginScreenState extends State<LoginScreen> {
       await ApiClient.instance.saveSession(
         accessToken: res.data['accessToken'] as String,
         refreshToken: res.data['refreshToken'] as String,
+        userId: (res.data['user'] as Map)['id'] as String,
       );
       if (!mounted) return;
       Navigator.of(context).pushReplacement(MaterialPageRoute(
@@ -191,6 +192,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       await ApiClient.instance.saveSession(
         accessToken: res.data['accessToken'] as String,
         refreshToken: res.data['refreshToken'] as String,
+        userId: (res.data['user'] as Map)['id'] as String,
       );
       if (!mounted) return;
       Navigator.of(context).pushAndRemoveUntil(MaterialPageRoute(

@@ -16,31 +16,51 @@ class ApiClient {
 
   Future<String?> get accessToken => _storage.read(key: 'access_token');
   Future<String?> get refreshToken => _storage.read(key: 'refresh_token');
+  Future<String?> get currentUserId => _storage.read(key: 'user_id');
 
   Future<void> saveSession({
     required String accessToken,
     required String refreshToken,
+    required String userId,
   }) async {
     await _storage.write(key: 'access_token', value: accessToken);
     await _storage.write(key: 'refresh_token', value: refreshToken);
+    await _storage.write(key: 'user_id', value: userId);
   }
 
   Future<void> clearSession() async {
+    // The per-user biometric PIN is intentionally KEPT (keyed by userId),
+    // so fingerprint stays enabled for that account after re-login.
+    // Cross-account use is impossible because the key includes the userId.
     await _storage.delete(key: 'access_token');
     await _storage.delete(key: 'refresh_token');
+    await _storage.delete(key: 'user_id');
   }
 
   Future<bool> hasSession() async {
     return await refreshToken != null;
   }
 
-  /// Local copy of the payment PIN, used to authorize payments after a
-  /// successful biometric check (device Keystore-encrypted storage).
-  /// Never leaves the device except inside a normal payment request.
-  Future<void> saveLocalPin(String pin) =>
-      _storage.write(key: 'local_payment_pin', value: pin);
-  Future<String?> readLocalPin() => _storage.read(key: 'local_payment_pin');
-  Future<void> clearLocalPin() => _storage.delete(key: 'local_payment_pin');
+  /// Local copy of the payment PIN for the CURRENT user, used to authorize
+  /// payments after a successful biometric check. Stored per user id and
+  /// wiped on logout — never shared between accounts.
+  Future<void> saveLocalPin(String pin) async {
+    final uid = await currentUserId;
+    if (uid == null) return;
+    await _storage.write(key: 'local_pin_$uid', value: pin);
+  }
+
+  Future<String?> readLocalPin() async {
+    final uid = await currentUserId;
+    if (uid == null) return null;
+    return _storage.read(key: 'local_pin_$uid');
+  }
+
+  Future<void> clearLocalPin() async {
+    final uid = await currentUserId;
+    if (uid == null) return;
+    await _storage.delete(key: 'local_pin_$uid');
+  }
 }
 
 class _AuthInterceptor extends Interceptor {
@@ -70,9 +90,14 @@ class _AuthInterceptor extends Interceptor {
         if (refresh != null) {
           final res = await Dio(BaseOptions(baseUrl: ApiClient.baseUrl))
               .post('/auth/refresh', data: {'refreshToken': refresh});
+          final uid = await _client.currentUserId;
+          if (uid == null) {
+            return handler.next(err);
+          }
           await _client.saveSession(
             accessToken: res.data['accessToken'] as String,
             refreshToken: res.data['refreshToken'] as String,
+            userId: uid,
           );
           // Retry the original request with the new token.
           final opts = err.requestOptions;
