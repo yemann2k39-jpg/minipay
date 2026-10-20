@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:minipay/api/api_client.dart';
 import 'package:minipay/screens/deposit_screen.dart';
+import 'package:minipay/screens/success_screen.dart';
 import 'package:minipay/widgets/pin_entry_pad.dart';
 
 class RequestsScreen extends StatefulWidget {
@@ -161,9 +162,16 @@ class _RequestsScreenState extends State<RequestsScreen> {
         'note': note.text.trim().isEmpty ? null : note.text.trim(),
       });
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Request sent 🎉')));
-      _load();
+      final nav = Navigator.of(context);
+      await nav.pushReplacement(MaterialPageRoute(
+        builder: (_) => SuccessScreen(
+          title: 'Request sent',
+          amountText: _money(cents),
+          subtitleLines: ['To ${email.text.trim()}'],
+          onPrimary: () => Navigator.of(context).pop(),
+        ),
+      ));
+      if (mounted) _load();
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -258,11 +266,16 @@ class _RequestsScreenState extends State<RequestsScreen> {
       await ApiClient.instance.dio
           .post('/requests/${r.id}/pay', data: {'pin': pin});
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content:
-              Text('Paid ${_money(r.amountMinor)} to ${r.counterparty} 🎉')));
-      Navigator.of(context).popUntil((route) => route.isFirst);
-      _load();
+      final nav = Navigator.of(context);
+      nav.popUntil((route) => route.isFirst);
+      nav.pushReplacement(MaterialPageRoute(
+        builder: (_) => SuccessScreen(
+          title: 'Payment successful',
+          amountText: _money(r.amountMinor),
+          subtitleLines: ['To ${r.counterparty}'],
+          onPrimary: () => Navigator.of(context).pop(),
+        ),
+      ));
     } catch (e) {
       final msg = apiError(e).message;
       // Offer a top-up when the wallet can't cover the request.

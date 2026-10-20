@@ -51,4 +51,11 @@ export class AuthController {
   pinStatus(@CurrentUser('userId') userId: string) {
     return this.auth.hasPin(userId);
   }
+
+  /** Verify a payment PIN — used by the app-lock (biometric/PIN unlock). */
+  @Post('pin/verify')
+  @UseGuards(JwtAuthGuard)
+  verifyPin(@CurrentUser('userId') userId: string, @Body() dto: SetupPinDto) {
+    return this.auth.verifyPin(userId, dto.pin);
+  }
 }

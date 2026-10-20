@@ -61,6 +61,43 @@ class ApiClient {
     if (uid == null) return;
     await _storage.delete(key: 'local_pin_$uid');
   }
+
+  /// App-lock preference for the CURRENT user (`app_lock_<userId>`).
+  /// Default ON when no explicit preference exists but a local PIN is
+  /// stored; otherwise OFF (nothing to fall back on).
+  Future<bool> readAppLockEnabled() async {
+    final uid = await currentUserId;
+    if (uid == null) return false;
+    final v = await _storage.read(key: 'app_lock_$uid');
+    if (v != null) return v == 'true';
+    return await readLocalPin() != null;
+  }
+
+  Future<void> saveAppLockEnabled(bool enabled) async {
+    final uid = await currentUserId;
+    if (uid == null) return;
+    await _storage.write(key: 'app_lock_$uid', value: enabled ? 'true' : 'false');
+  }
+
+  /// Verifies a PIN against the server session. Throws [ApiException] on
+  /// rejection (wrong PIN / dead session) or network problems.
+  Future<void> verifyPin(String pin) async {
+    try {
+      final res = await dio.post('/auth/pin/verify', data: {'pin': pin});
+      if (res.data is Map && res.data['success'] == true) return;
+      throw ApiException('Incorrect PIN. Please try again.');
+    } on DioException catch (e) {
+      final status = e.response?.statusCode;
+      if (status == 400 || status == 401) {
+        final data = e.response?.data;
+        final msg = data is Map && data['message'] != null
+            ? data['message'].toString()
+            : 'Incorrect PIN. Please try again.';
+        throw ApiException(msg);
+      }
+      throw apiError(e);
+    }
+  }
 }
 
 class _AuthInterceptor extends Interceptor {

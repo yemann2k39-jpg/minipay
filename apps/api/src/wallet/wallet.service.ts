@@ -155,12 +155,39 @@ export class WalletService {
     if (tx.fromAccountId !== wallet.id && tx.toAccountId !== wallet.id) {
       throw new NotFoundException('Transaction not found');
     }
+
+    // Resolve counterparty names (same resolution as history).
+    const accountIds = [tx.fromAccountId, tx.toAccountId].filter(
+      (x): x is string => !!x,
+    );
+    const accounts = await this.prisma.ledgerAccount.findMany({
+      where: { id: { in: accountIds } },
+      select: {
+        id: true,
+        kind: true,
+        owner: { select: { displayName: true } },
+        merchant: { select: { name: true } },
+      },
+    });
+    const nameOf = (accountId?: string | null) => {
+      if (!accountId) return null;
+      const a = accounts.find((x) => x.id === accountId);
+      if (!a) return null;
+      return a.merchant?.name ?? a.owner?.displayName ?? a.kind;
+    };
+    const isIn = tx.toAccountId === wallet.id;
+
     return {
+      id: tx.id,
       transactionId: tx.id,
-      status: tx.status,
       type: tx.type,
+      status: tx.status,
       amount: tx.amount.toString(),
       currency: tx.currency,
+      direction: isIn ? 'IN' : 'OUT',
+      counterparty: nameOf(isIn ? tx.fromAccountId : tx.toAccountId),
+      createdAt: tx.createdAt,
+      completedAt: tx.completedAt,
     };
   }
 

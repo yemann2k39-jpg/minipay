@@ -12,6 +12,7 @@ import 'package:minipay/screens/report_screen.dart';
 import 'package:minipay/screens/requests_screen.dart';
 import 'package:minipay/screens/scan_pay_screen.dart';
 import 'package:minipay/screens/split_screen.dart';
+import 'package:minipay/screens/transaction_detail_screen.dart';
 import 'package:minipay/screens/transfer_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -116,6 +117,45 @@ class _HomeScreenState extends State<HomeScreen> {
         MaterialPageRoute(builder: (_) => const AuthGate()), (r) => false);
   }
 
+  Future<void> _showSettingsSheet() async {
+    final enabled = await ApiClient.instance.readAppLockEnabled();
+    if (!mounted) return;
+    await showModalBottomSheet<void>(
+      context: context,
+      builder: (sheetContext) {
+        bool value = enabled;
+        return StatefulBuilder(
+          builder: (sheetContext, setSheetState) => Padding(
+            padding: const EdgeInsets.fromLTRB(24, 24, 24, 32),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Settings',
+                    style: Theme.of(sheetContext)
+                        .textTheme
+                        .titleMedium
+                        ?.copyWith(fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('App lock'),
+                  subtitle: const Text(
+                      'Require fingerprint or PIN each time you open MiniPay'),
+                  value: value,
+                  onChanged: (v) async {
+                    setSheetState(() => value = v);
+                    await ApiClient.instance.saveAppLockEnabled(v);
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_loading) {
@@ -132,6 +172,11 @@ class _HomeScreenState extends State<HomeScreen> {
             tooltip: 'Monthly report',
             onPressed: () => Navigator.of(context).push(
                 MaterialPageRoute(builder: (_) => const ReportScreen())),
+          ),
+          IconButton(
+            icon: const Icon(Icons.settings_outlined),
+            tooltip: 'Settings',
+            onPressed: _showSettingsSheet,
           ),
           IconButton(
             icon: Badge(
@@ -394,6 +439,10 @@ class _HomeScreenState extends State<HomeScreen> {
                             : Colors.grey,
                       ),
                     ),
+                    onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                      builder: (_) => TransactionDetailScreen(
+                          transactionId: t['id'] as String),
+                    )),
                   ),
                 );
               }),

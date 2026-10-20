@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:minipay/api/api_client.dart';
+import 'package:minipay/screens/transaction_detail_screen.dart';
 
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
@@ -292,6 +293,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 : Colors.grey,
           ),
         ),
+        onTap: () => Navigator.of(context).push(MaterialPageRoute(
+          builder: (_) =>
+              TransactionDetailScreen(transactionId: t['id'] as String),
+        )),
       ),
     );
   }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:minipay/api/api_client.dart';
+import 'package:minipay/screens/success_screen.dart';
 import 'package:minipay/widgets/pin_entry_pad.dart';
 
 /// Scans a merchant QR and takes the user through confirmation.
@@ -211,10 +212,16 @@ class _ConfirmPaymentScreenState extends State<ConfirmPaymentScreen> {
       if (!mounted) return;
       final dollars = cents ~/ 100;
       final rem = (cents % 100).toString().padLeft(2, '0');
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content:
-              Text('Paid S\$$dollars.$rem to $_merchantName 🎉')));
-      Navigator.of(context).popUntil((r) => r.isFirst);
+      final nav = Navigator.of(context);
+      nav.popUntil((r) => r.isFirst);
+      nav.pushReplacement(MaterialPageRoute(
+        builder: (_) => SuccessScreen(
+          title: 'Payment successful',
+          amountText: 'S\$$dollars.$rem',
+          subtitleLines: ['To $_merchantName'],
+          onPrimary: () => Navigator.of(context).pop(),
+        ),
+      ));
     } catch (e) {
       throw Exception(apiError(e).message);
     }
