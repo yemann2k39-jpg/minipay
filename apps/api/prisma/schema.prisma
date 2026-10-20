@@ -33,8 +33,10 @@ model User {
   contactsOwned  Contact[]       @relation("contactOwner")
   contactsOf     Contact[]       @relation("contactTarget")
   notifications  Notification[]
-  requestsMade   MoneyRequest[]  @relation("requestsMade")
-  requestsReceived MoneyRequest[] @relation("requestsReceived")
+  requestsMade     MoneyRequest[]   @relation("requestsMade")
+  requestsReceived MoneyRequest[]   @relation("requestsReceived")
+  splitsCreated    SplitSession[]   @relation("splitsCreated")
+  splitParticipants SplitParticipant[] @relation("splitParticipants")
 }
 
 model LedgerAccount {
@@ -224,10 +226,60 @@ model MoneyRequest {
   note        String?
   status      MoneyRequestStatus @default(PENDING)
   transactionId String?         @db.Uuid
+  // Set when this request was auto-created as a participant's share of a split bill.
+  splitSession  SplitSession?    @relation(fields: [splitSessionId], references: [id], onDelete: SetNull)
+  splitSessionId String?         @db.Uuid
+  splitParticipant SplitParticipant?
   createdAt   DateTime          @default(now())
   completedAt DateTime?
 
   @@index([payerId, status])
   @@index([requesterId, status])
+  @@index([splitSessionId])
+}
+
+// ---------------------------------------------------------------------------
+// Split bill: scan a receipt, assign items to participants, request shares.
+// ---------------------------------------------------------------------------
+
+model SplitSession {
+  id             String   @id @default(uuid()) @db.Uuid
+  creator        User     @relation("splitsCreated", fields: [creatorId], references: [id])
+  creatorId      String   @db.Uuid
+  title          String
+  status         String   @default("OPEN") // OPEN | SETTLED (derived in API responses)
+  extraAmount    BigInt   @default(0) // tip/extra added to the total
+  discountAmount BigInt   @default(0) // discount subtracted from the total
+  createdAt      DateTime @default(now())
+  items          SplitItem[]
+  participants   SplitParticipant[]
+  requests       MoneyRequest[]
+
+  @@index([creatorId])
+}
+
+model SplitItem {
+  id              String       @id @default(uuid()) @db.Uuid
+  session         SplitSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  sessionId       String       @db.Uuid
+  name            String
+  price           BigInt
+  assignedUserIds String[] // empty = split among all participants
+
+  @@index([sessionId])
+}
+
+model SplitParticipant {
+  id             String   @id @default(uuid()) @db.Uuid
+  session        SplitSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  sessionId      String   @db.Uuid
+  user           User     @relation("splitParticipants", fields: [userId], references: [id])
+  userId         String   @db.Uuid
+  shareAmount    BigInt   // computed fair share (minor units)
+  moneyRequest   MoneyRequest? @relation(fields: [moneyRequestId], references: [id], onDelete: SetNull)
+  moneyRequestId String?  @unique @db.Uuid
+
+  @@unique([sessionId, userId])
+  @@index([userId])
 }
 

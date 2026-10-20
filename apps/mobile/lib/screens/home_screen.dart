@@ -11,6 +11,7 @@ import 'package:minipay/screens/pin_setup.dart';
 import 'package:minipay/screens/report_screen.dart';
 import 'package:minipay/screens/requests_screen.dart';
 import 'package:minipay/screens/scan_pay_screen.dart';
+import 'package:minipay/screens/split_screen.dart';
 import 'package:minipay/screens/transfer_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -300,6 +301,24 @@ class _HomeScreenState extends State<HomeScreen> {
                   minimumSize: const Size.fromHeight(52)),
               icon: const Icon(Icons.request_quote),
               label: const Text('Request money'),
+            ),
+            const SizedBox(height: 12),
+            FilledButton.tonalIcon(
+              onPressed: _frozen
+                  ? null
+                  : () async {
+                      await Navigator.of(context).push(
+                          MaterialPageRoute(
+                              builder: (_) => const SplitScreen()));
+                      _load();
+                    },
+              style: FilledButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  foregroundColor: Theme.of(context).colorScheme.primary,
+                  disabledForegroundColor: Colors.grey,
+                  minimumSize: const Size.fromHeight(52)),
+              icon: const Icon(Icons.receipt_long),
+              label: const Text('Split bill'),
             ),
             if (!_data.hasPin) ...[
               const SizedBox(height: 12),

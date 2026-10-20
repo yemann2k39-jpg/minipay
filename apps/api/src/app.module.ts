@@ -8,6 +8,7 @@ import { MerchantsModule } from './merchants/merchants.module';
 import { ContactsModule } from './contacts/contacts.module';
 import { TransfersModule } from './transfers/transfers.module';
 import { RequestsModule } from './requests/requests.module';
+import { SplitModule } from './split/split.module';
 import { AdminModule } from './admin/admin.module';
 
 @Module({
@@ -21,6 +22,7 @@ import { AdminModule } from './admin/admin.module';
     ContactsModule,
     TransfersModule,
     RequestsModule,
+    SplitModule,
     AdminModule,
   ],
 })

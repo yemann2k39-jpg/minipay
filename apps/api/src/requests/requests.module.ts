@@ -9,5 +9,6 @@ import { ContactsModule } from '../contacts/contacts.module';
   imports: [AuthModule, LedgerModule, ContactsModule],
   providers: [RequestsService],
   controllers: [RequestsController],
+  exports: [RequestsService], // used by SplitService (createInternal)
 })
 export class RequestsModule {}

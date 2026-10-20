@@ -4,7 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { MoneyRequestStatus } from '@prisma/client';
+import { MoneyRequest, MoneyRequestStatus } from '@prisma/client';
 import { AuthService } from '../auth/auth.service';
 import { ContactsService } from '../contacts/contacts.service';
 import { LedgerService } from '../ledger/ledger.service';
@@ -40,23 +40,13 @@ export class RequestsService {
       throw new BadRequestException('You cannot request money from yourself');
     }
 
-    const req = await this.prisma.moneyRequest.create({
-      data: {
-        requesterId,
-        payerId: payerUser.id,
-        amount,
-        note: note?.trim() || null,
-      },
-    });
-
-    await this.prisma.notification.create({
-      data: {
-        userId: payerUser.id,
-        type: 'REQUEST_RECEIVED',
-        title: 'Money request',
-        body: `${requester!.displayName} requested SGD ${(Number(amount) / 100).toFixed(2)}.`,
-      },
-    });
+    const req = await this.createInternal(
+      requesterId,
+      payerUser.id,
+      amount,
+      note ?? null,
+      null,
+    );
 
     return {
       id: req.id,
@@ -66,6 +56,49 @@ export class RequestsService {
       note: req.note,
       status: req.status,
     };
+  }
+
+  /**
+   * Internal request creation shared by create() and the Split bill feature.
+   * Takes the payer id directly (no email lookup), links an optional split
+   * session, and sends the same REQUEST_RECEIVED notification as create().
+   * Does NOT do the frozen/bounds/self checks — callers do their own upfront.
+   * Pass `client` (a Prisma transaction client) to run atomically inside the
+   * caller's transaction; defaults to the global prisma client.
+   */
+  async createInternal(
+    requesterId: string,
+    payerId: string,
+    amount: bigint,
+    note: string | null,
+    splitSessionId: string | null,
+    client: Pick<PrismaService, 'user' | 'moneyRequest' | 'notification'> = this.prisma,
+  ): Promise<MoneyRequest> {
+    const requester = await client.user.findUnique({
+      where: { id: requesterId },
+      select: { displayName: true },
+    });
+
+    const req = await client.moneyRequest.create({
+      data: {
+        requesterId,
+        payerId,
+        amount,
+        note: note?.trim() || null,
+        splitSessionId,
+      },
+    });
+
+    await client.notification.create({
+      data: {
+        userId: payerId,
+        type: 'REQUEST_RECEIVED',
+        title: 'Money request',
+        body: `${requester?.displayName ?? 'Someone'} requested SGD ${(Number(amount) / 100).toFixed(2)}.`,
+      },
+    });
+
+    return req;
   }
 
   async list(userId: string) {
