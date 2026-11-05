@@ -1,4 +1,4 @@
-import type { AdminStats, AdminUser, LoginResponse, Transaction } from './types';
+import type { AdminMerchant, AdminStats, AdminUser, LoginResponse, Transaction } from './types';
 
 const TOKEN_KEY = 'wallet_admin_access_token';
 
@@ -115,5 +115,14 @@ export const api = {
   },
   getTransactions(take = 50): Promise<Transaction[]> {
     return request<Transaction[]>(`/admin/transactions?take=${take}`);
+  },
+  getMerchants(): Promise<AdminMerchant[]> {
+    return request<AdminMerchant[]>('/admin/merchants');
+  },
+  setMerchantStatus(id: string, action: 'freeze' | 'unfreeze'): Promise<{ success: boolean }> {
+    return request<{ success: boolean }>(
+      `/admin/merchants/${encodeURIComponent(id)}/${action}`,
+      { method: 'POST' },
+    );
   },
 };

@@ -6,6 +6,7 @@ import 'package:minipay/api/api_client.dart';
 import 'package:minipay/screens/bootstrap.dart';
 import 'package:minipay/screens/deposit_screen.dart';
 import 'package:minipay/screens/history_screen.dart';
+import 'package:minipay/screens/merchant_home_screen.dart';
 import 'package:minipay/screens/notifications_screen.dart';
 import 'package:minipay/screens/pin_setup.dart';
 import 'package:minipay/screens/report_screen.dart';
@@ -16,7 +17,11 @@ import 'package:minipay/screens/transaction_detail_screen.dart';
 import 'package:minipay/screens/transfer_screen.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  const HomeScreen({super.key, this.embedPersonal = false});
+
+  /// Merchant users only: show the personal wallet view instead of the
+  /// merchant home (PGW-23 view toggle).
+  final bool embedPersonal;
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -33,6 +38,7 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _loading = true;
   int _unread = 0;
   bool _frozen = false;
+  bool _isMerchant = false;
   Timer? _pollTimer;
 
   @override
@@ -75,6 +81,7 @@ class _HomeScreenState extends State<HomeScreen> {
       try {
         final me = await ApiClient.instance.dio.get('/auth/me');
         _frozen = me.data['status'] == 'FROZEN';
+        _isMerchant = me.data['role'] == 'MERCHANT';
       } on DioException catch (e) {
         if (e.response?.statusCode != 401) rethrow;
       }
@@ -161,12 +168,21 @@ class _HomeScreenState extends State<HomeScreen> {
     if (_loading) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
+    // Merchant users get the merchant home unless they explicitly switched
+    // to their personal wallet view (PGW-23).
+    if (_isMerchant && !widget.embedPersonal) return const MerchantHomeScreen();
     final purple = Theme.of(context).colorScheme.primary;
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
       appBar: AppBar(
-        title: const Text('MiniPay'),
+        title: Text(_isMerchant ? 'My wallet' : 'MiniPay'),
         actions: [
+          if (_isMerchant)
+            IconButton(
+              icon: const Icon(Icons.storefront),
+              tooltip: 'Back to business view',
+              onPressed: () => Navigator.of(context).maybePop(),
+            ),
           IconButton(
             icon: const Icon(Icons.insights),
             tooltip: 'Monthly report',

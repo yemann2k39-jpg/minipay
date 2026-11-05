@@ -1,4 +1,5 @@
 import {
+  Body,
   Controller,
   Get,
   Param,
@@ -38,5 +39,32 @@ export class AdminController {
   @Get('transactions')
   transactions(@Query('take') take?: string) {
     return this.admin.transactions(Number(take ?? 50));
+  }
+
+  // --- MiniPay Checkout merchants -----------------------------------------
+
+  @Post('merchants')
+  createMerchant(@Body() body: { name: string; callbackUrl?: string }) {
+    return this.admin.createMerchant(body?.name, body?.callbackUrl);
+  }
+
+  @Get('merchants')
+  listMerchants() {
+    return this.admin.listMerchants();
+  }
+
+  @Post('merchants/:id/rotate-key')
+  rotateMerchantKey(@Param('id') id: string) {
+    return this.admin.rotateMerchantKey(id);
+  }
+
+  @Post('merchants/:id/freeze')
+  freezeMerchant(@Param('id') id: string) {
+    return this.admin.setMerchantFrozen(id, true);
+  }
+
+  @Post('merchants/:id/unfreeze')
+  unfreezeMerchant(@Param('id') id: string) {
+    return this.admin.setMerchantFrozen(id, false);
   }
 }

@@ -211,13 +211,14 @@ class _TransferScreenState extends State<TransferScreen> {
       final dollars = cents ~/ 100;
       final rem = (cents % 100).toString().padLeft(2, '0');
       final nav = Navigator.of(context);
+      // Return to home FIRST, then show the success page on top of it —
+      // Done pops back to home.
       nav.popUntil((r) => r.isFirst);
-      nav.pushReplacement(MaterialPageRoute(
+      nav.push(MaterialPageRoute(
         builder: (_) => SuccessScreen(
           title: 'Transfer successful',
           amountText: 'S\$$dollars.$rem',
           subtitleLines: ['To ${_recipient!.displayName}'],
-          onPrimary: () => Navigator.of(context).pop(),
         ),
       ));
     } catch (e) {

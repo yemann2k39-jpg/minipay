@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:minipay/api/api_client.dart';
+import 'package:minipay/screens/checkout_confirm_screen.dart';
 import 'package:minipay/screens/success_screen.dart';
 import 'package:minipay/widgets/pin_entry_pad.dart';
 
@@ -27,9 +28,23 @@ class _ScanPayScreenState extends State<ScanPayScreen> {
       final raw = barcode.rawValue;
       if (raw == null) continue;
       final uri = Uri.tryParse(raw);
-      if (uri == null || uri.scheme != 'minipay' || uri.host != 'pay') {
+      if (uri == null || uri.scheme != 'minipay') {
         continue; // not ours — keep scanning
       }
+      // Online checkout QR: minipay://checkout/<checkoutId>
+      if (uri.host == 'checkout') {
+        final checkoutId = uri.path.replaceFirst('/', '');
+        if (checkoutId.isEmpty) continue;
+        _controller.stop();
+        if (!mounted) return;
+        Navigator.of(context)
+            .push(MaterialPageRoute(
+              builder: (_) => CheckoutConfirmScreen(checkoutId: checkoutId),
+            ))
+            .then((_) => _controller.start());
+        return;
+      }
+      if (uri.host != 'pay') continue;
       final code = uri.queryParameters['merchant'];
       if (code == null || code.isEmpty) continue;
       // Stop the camera before navigating on.
@@ -213,13 +228,13 @@ class _ConfirmPaymentScreenState extends State<ConfirmPaymentScreen> {
       final dollars = cents ~/ 100;
       final rem = (cents % 100).toString().padLeft(2, '0');
       final nav = Navigator.of(context);
+      // Return to home first, then show success on top — Done pops to home.
       nav.popUntil((r) => r.isFirst);
-      nav.pushReplacement(MaterialPageRoute(
+      nav.push(MaterialPageRoute(
         builder: (_) => SuccessScreen(
           title: 'Payment successful',
           amountText: 'S\$$dollars.$rem',
           subtitleLines: ['To $_merchantName'],
-          onPrimary: () => Navigator.of(context).pop(),
         ),
       ));
     } catch (e) {

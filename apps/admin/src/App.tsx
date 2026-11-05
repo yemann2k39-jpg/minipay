@@ -4,12 +4,14 @@ import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
 import UsersPage from './pages/UsersPage';
 import TransactionsPage from './pages/TransactionsPage';
+import MerchantsPage from './pages/MerchantsPage';
 
-type View = 'dashboard' | 'users' | 'transactions';
+type View = 'dashboard' | 'users' | 'merchants' | 'transactions';
 
 const NAV_ITEMS: ReadonlyArray<{ key: View; label: string }> = [
   { key: 'dashboard', label: 'Dashboard' },
   { key: 'users', label: 'Users' },
+  { key: 'merchants', label: 'Merchants' },
   { key: 'transactions', label: 'Transactions' },
 ];
 
@@ -69,6 +71,7 @@ export default function App() {
       <main className="page">
         {view === 'dashboard' && <DashboardPage />}
         {view === 'users' && <UsersPage />}
+        {view === 'merchants' && <MerchantsPage />}
         {view === 'transactions' && <TransactionsPage />}
       </main>
     </div>

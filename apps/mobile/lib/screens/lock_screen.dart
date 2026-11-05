@@ -124,12 +124,15 @@ class _LockScreenState extends State<LockScreen> {
     final primary = Theme.of(context).colorScheme.primary;
     return Scaffold(
       backgroundColor: Colors.white,
+      // Center gives the body Column its full width so everything centers.
       body: SafeArea(
-        child: _mode == _LockMode.checking
-            ? const Center(child: CircularProgressIndicator())
-            : _mode == _LockMode.pin
-                ? _buildPinBody()
-                : _buildBiometricBody(primary),
+        child: Center(
+          child: _mode == _LockMode.checking
+              ? const CircularProgressIndicator()
+              : _mode == _LockMode.pin
+                  ? _buildPinBody()
+                  : _buildBiometricBody(primary),
+        ),
       ),
     );
   }
@@ -164,73 +167,68 @@ class _LockScreenState extends State<LockScreen> {
   }
 
   Widget _buildBiometricBody(Color primary) {
-    return Center(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.lock_outline, size: 48, color: Color(0xFF0F4C81)),
-            const SizedBox(height: 16),
-            const Text('MiniPay',
-                style: TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF16283C))),
-            const SizedBox(height: 8),
-            Text('Your wallet is locked',
-                style: Theme.of(context).textTheme.bodyMedium),
-            if (_error != null) ...[
-              const SizedBox(height: 16),
-              Text(_error!,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(color: Colors.red)),
-            ],
-            const SizedBox(height: 48),
-            _authenticating
-                ? const CircularProgressIndicator()
-                : SizedBox(
-                    width: 132,
-                    height: 132,
-                    child: FilledButton(
-                      onPressed: _unlockWithBiometrics,
-                      style: FilledButton.styleFrom(
-                        backgroundColor: primary,
-                        foregroundColor: Colors.white,
-                        shape: const CircleBorder(),
-                      ),
-                      child: const Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.fingerprint, size: 48),
-                          SizedBox(height: 4),
-                          Text('Unlock',
-                              style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600)),
-                        ],
-                      ),
-                    ),
-                  ),
-            const SizedBox(height: 24),
-            TextButton(
-              onPressed: _authenticating
-                  ? null
-                  : () => setState(() {
-                        _error = null;
-                        _mode = _LockMode.pin;
-                      }),
-              child: const Text('Use PIN instead'),
+    // Lock icon alone at the top; logo/title/subtitle centered; unlock
+    // actions at the bottom.
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        const SizedBox(height: 32),
+        const Icon(Icons.lock_outline, size: 32, color: Color(0xFF0F4C81)),
+        const Spacer(),
+        const Icon(Icons.account_balance_wallet,
+            size: 56, color: Color(0xFF0F4C81)),
+        const SizedBox(height: 8),
+        const Text('MiniPay',
+            style: TextStyle(
+                fontSize: 26,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF16283C))),
+        const SizedBox(height: 8),
+        Text('Your wallet is locked',
+            style: Theme.of(context).textTheme.bodyMedium),
+        if (_error != null) ...[
+          const SizedBox(height: 16),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 32),
+            child: Text(_error!,
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Colors.red)),
+          ),
+        ],
+        const Spacer(),
+        if (_authenticating)
+          const CircularProgressIndicator()
+        else
+          SizedBox(
+            width: 80,
+            height: 80,
+            child: FilledButton(
+              onPressed: _unlockWithBiometrics,
+              style: FilledButton.styleFrom(
+                backgroundColor: primary,
+                foregroundColor: Colors.white,
+                shape: const CircleBorder(),
+                padding: EdgeInsets.zero,
+              ),
+              child: Center(child: const Icon(Icons.fingerprint, size: 40)),
             ),
-            TextButton(
-              onPressed: _logout,
-              child: const Text('Logout',
-                  style: TextStyle(color: Colors.red)),
-            ),
-          ],
+          ),
+        const SizedBox(height: 16),
+        TextButton(
+          onPressed: _authenticating
+              ? null
+              : () => setState(() {
+                    _error = null;
+                    _mode = _LockMode.pin;
+                  }),
+          child: const Text('Use PIN instead'),
         ),
-      ),
+        TextButton(
+          onPressed: _logout,
+          child: const Text('Logout', style: TextStyle(color: Colors.red)),
+        ),
+        const SizedBox(height: 12),
+      ],
     );
   }
 }

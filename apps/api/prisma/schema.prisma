@@ -23,7 +23,7 @@ model User {
   displayName  String
   passwordHash String
   pinHash      String?
-  role         String     @default("USER") // USER | ADMIN
+  role         String     @default("USER") // USER | ADMIN | MERCHANT
   status       UserStatus @default(ACTIVE)
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
@@ -37,6 +37,7 @@ model User {
   requestsReceived MoneyRequest[]   @relation("requestsReceived")
   splitsCreated    SplitSession[]   @relation("splitsCreated")
   splitParticipants SplitParticipant[] @relation("splitParticipants")
+  ownedMerchants    Merchant[]         @relation("ownedMerchants")
 }
 
 model LedgerAccount {
@@ -85,6 +86,8 @@ enum JournalEntryType {
   REQUEST_PAYMENT
   FEE
   ADJUSTMENT
+  REFUND
+  WITHDRAWAL
 }
 
 model JournalEntry {
@@ -124,6 +127,7 @@ enum TransactionType {
   TRANSFER
   MERCHANT_PAYMENT
   REQUEST_PAYMENT
+  REFUND
 }
 
 enum TransactionStatus {
@@ -171,7 +175,40 @@ model Merchant {
   status     UserStatus @default(ACTIVE)
   ledgerAccountId String @unique @db.Uuid
   ledgerAccount LedgerAccount @relation(fields: [ledgerAccountId], references: [id])
+  // MiniPay Checkout (merchant API): SHA-256 hash of the `mp_<32hex>` API key.
+  // Nullable so pre-checkout merchant rows survive `prisma db push`.
+  apiKeyHash String? @unique
+  // Plain API key, used to sign HMAC callbacks. DEV/TEST ONLY — production
+  // must store this encrypted (or per-merchant callback secrets) at rest.
+  apiKey     String?
+  callbackUrl String?
+  // Owner-linked merchant (PGW-17): the MiniPay user who manages this shop.
+  // Nullable so pre-existing/admin-created merchants stay valid.
+  ownerUserId String? @db.Uuid
+  ownerUser   User?   @relation("ownedMerchants", fields: [ownerUserId], references: [id])
+  checkouts   CheckoutSession[]
   createdAt  DateTime @default(now())
+}
+
+// Hosted checkout sessions (MiniPay Checkout): a merchant creates one per
+// order; the customer pays it via QR or email+PIN on the hosted page.
+model CheckoutSession {
+  id            String   @id @default(uuid()) @db.Uuid
+  merchant      Merchant @relation(fields: [merchantId], references: [id])
+  merchantId    String   @db.Uuid
+  orderRef      String
+  amountMinor   BigInt
+  currency      String   @default("SGD")
+  description   String?
+  status        String   @default("PENDING") // PENDING | PAID | EXPIRED
+  callbackUrl   String
+  transactionId String?  @db.Uuid
+  paidAt        DateTime?
+  expiresAt     DateTime
+  createdAt     DateTime @default(now())
+
+  @@unique([merchantId, orderRef])
+  @@index([merchantId, status])
 }
 
 // ---------------------------------------------------------------------------

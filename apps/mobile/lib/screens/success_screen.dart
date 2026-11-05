@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 
 /// Reusable full-screen success page shown after a completed money flow
-/// (transfer, request, merchant payment). Pushed with `pushReplacement`
-/// (after popping back to the first route) so Back returns to home.
+/// (transfer, request, merchant payment). The Done button always pops THIS
+/// screen with its own live context — callers may run a hook (e.g. refresh)
+/// before the pop via [onPrimary].
 class SuccessScreen extends StatelessWidget {
   const SuccessScreen({
     super.key,
@@ -10,14 +11,17 @@ class SuccessScreen extends StatelessWidget {
     required this.amountText,
     this.subtitleLines = const [],
     this.primaryButtonLabel = 'Done',
-    required this.onPrimary,
+    this.onPrimary,
   });
 
   final String title;
   final String amountText;
   final List<String> subtitleLines;
   final String primaryButtonLabel;
-  final VoidCallback onPrimary;
+
+  /// Optional hook run with this screen's context right before popping
+  /// (e.g. refresh the list underneath).
+  final void Function(BuildContext context)? onPrimary;
 
   @override
   Widget build(BuildContext context) {
@@ -93,7 +97,12 @@ class SuccessScreen extends StatelessWidget {
               SizedBox(
                 width: double.infinity,
                 child: FilledButton(
-                  onPressed: onPrimary,
+                  onPressed: () {
+                    onPrimary?.call(context);
+                    if (context.mounted && Navigator.of(context).canPop()) {
+                      Navigator.of(context).pop();
+                    }
+                  },
                   style: FilledButton.styleFrom(
                     backgroundColor: const Color(0xFF0F4C81),
                     minimumSize: const Size.fromHeight(52),

@@ -8,7 +8,10 @@ import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { createHash, randomBytes } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
+import { LedgerAccountKind } from '@prisma/client';
+import { generateMerchantCode } from '../merchant-api/merchant-api.service';
 import { RegisterDto } from './dto/register.dto';
+import { RegisterBusinessDto } from './dto/register-business.dto';
 import { LoginDto } from './dto/login.dto';
 
 const ACCESS_TTL = '15m';
@@ -35,6 +38,55 @@ export class AuthService {
       },
     });
     return this.issueTokens(user.id, user.email);
+  }
+
+  /**
+   * Register a business (PGW-17): one transaction creates the owner User
+   * (role MERCHANT), its MERCHANT settlement ledger account, and the Merchant
+   * row. No API key yet — the owner creates/rotates one from the app.
+   */
+  async registerBusiness(dto: RegisterBusinessDto) {
+    const existing = await this.prisma.user.findUnique({ where: { email: dto.email } });
+    if (existing) throw new ConflictException('An account with this email already exists');
+
+    const passwordHash = await bcrypt.hash(dto.password, 12);
+    const result = await this.prisma.$transaction(async (tx) => {
+      const user = await tx.user.create({
+        data: {
+          email: dto.email,
+          displayName: dto.displayName,
+          phone: dto.phone,
+          passwordHash,
+          role: 'MERCHANT',
+        },
+      });
+      const account = await tx.ledgerAccount.create({
+        data: {
+          kind: LedgerAccountKind.MERCHANT,
+          currency: 'SGD',
+          ownerId: user.id,
+        },
+      });
+      let merchant = null;
+      for (let i = 0; i < 5 && !merchant; i++) {
+        try {
+          merchant = await tx.merchant.create({
+            data: {
+              code: generateMerchantCode(),
+              name: dto.businessName.trim(),
+              ledgerAccountId: account.id,
+              ownerUserId: user.id,
+            },
+          });
+        } catch (e: any) {
+          if (e?.code !== 'P2002') throw e;
+        }
+      }
+      if (!merchant) throw new ConflictException('Could not generate a unique merchant code');
+      return { user, merchant };
+    });
+    const tokens = await this.issueTokens(result.user.id, result.user.email);
+    return { ...tokens, merchant: { code: result.merchant.code, name: result.merchant.name } };
   }
 
   async login(dto: LoginDto) {
@@ -134,7 +186,7 @@ export class AuthService {
       where: { id: userId },
       select: { role: true },
     });
-    const payload = { sub: userId, email, role: user?.role ?? 'USER' };
+    const payload = { sub: userId, email, role: user?.role ?? 'USER', jti };
     const accessToken = await this.jwt.signAsync(payload, { expiresIn: ACCESS_TTL });
     const refreshToken = await this.jwt.signAsync(payload, {
       secret: process.env.JWT_REFRESH_SECRET,

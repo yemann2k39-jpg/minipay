@@ -1,6 +1,7 @@
 import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
+import { RegisterBusinessDto } from './dto/register-business.dto';
 import { LoginDto } from './dto/login.dto';
 import { RefreshDto } from './dto/refresh.dto';
 import { SetupPinDto } from './dto/setup-pin.dto';
@@ -14,6 +15,12 @@ export class AuthController {
   @Post('register')
   register(@Body() dto: RegisterDto) {
     return this.auth.register(dto);
+  }
+
+  /** Register a business account (merchant user + shop + ledger, one call). */
+  @Post('register-business')
+  registerBusiness(@Body() dto: RegisterBusinessDto) {
+    return this.auth.registerBusiness(dto);
   }
 
   @Post('login')

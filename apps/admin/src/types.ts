@@ -4,7 +4,8 @@ export type TransactionType =
   | 'DEPOSIT'
   | 'TRANSFER'
   | 'MERCHANT_PAYMENT'
-  | 'REQUEST_PAYMENT';
+  | 'REQUEST_PAYMENT'
+  | 'REFUND';
 
 export type TransactionStatus = 'PENDING' | 'COMPLETED' | 'FAILED';
 
@@ -49,4 +50,22 @@ export interface AdminStats {
   activeUsers: number;
   transactions: number;
   volumeMinor: string;
+}
+
+export interface MerchantOwner {
+  email: string;
+  displayName: string;
+  status: UserStatus;
+}
+
+export interface AdminMerchant {
+  id: string;
+  code: string;
+  name: string;
+  status: UserStatus;
+  callbackUrl?: string | null;
+  ledgerAccountId: string;
+  balanceMinor: string;
+  owner: MerchantOwner | null;
+  createdAt: string;
 }

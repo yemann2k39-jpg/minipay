@@ -9,6 +9,7 @@ const TYPE_LABELS: Record<TransactionType, string> = {
   TRANSFER: 'Transfer',
   MERCHANT_PAYMENT: 'Merchant payment',
   REQUEST_PAYMENT: 'Request payment',
+  REFUND: 'Refund',
 };
 
 function typeLabel(type: string): string {

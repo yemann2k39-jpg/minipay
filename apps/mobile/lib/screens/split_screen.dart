@@ -1087,7 +1087,6 @@ class _SplitDetailScreenState extends State<SplitDetailScreen> {
   List<_DetailItem> _items = [];
   bool _loading = true;
   bool _loadFailed = false;
-  bool _sendingRequests = false;
   bool _deleting = false;
 
   @override
@@ -1140,7 +1139,6 @@ class _SplitDetailScreenState extends State<SplitDetailScreen> {
   }
 
   Future<void> _sendRequests(String? userId) async {
-    setState(() => _sendingRequests = true);
     try {
       final res = await ApiClient.instance.dio
           .post('/split/${widget.sessionId}/requests/send', data: {
@@ -1155,7 +1153,6 @@ class _SplitDetailScreenState extends State<SplitDetailScreen> {
       _load();
     } catch (e) {
       if (!mounted) return;
-      setState(() => _sendingRequests = false);
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text(apiError(e).message),
           backgroundColor: Colors.red.shade300,
@@ -1344,10 +1341,8 @@ class _SplitDetailScreenState extends State<SplitDetailScreen> {
                                           if (p.needsRequest) ...[
                                             const SizedBox(width: 8),
                                             OutlinedButton(
-                                              onPressed: _sendingRequests
-                                                  ? null
-                                                  : () => _sendRequests(
-                                                      p.userId),
+                                              onPressed: () => _sendRequests(
+                                                  p.userId),
                                               style: OutlinedButton.styleFrom(
                                                   padding: const EdgeInsets
                                                       .symmetric(
@@ -1370,9 +1365,7 @@ class _SplitDetailScreenState extends State<SplitDetailScreen> {
                                   Padding(
                                     padding: const EdgeInsets.only(top: 4),
                                     child: FilledButton.icon(
-                                      onPressed: _sendingRequests
-                                          ? null
-                                          : () => _sendRequests(null),
+                                      onPressed: () => _sendRequests(null),
                                       style: FilledButton.styleFrom(
                                           backgroundColor:
                                               const Color(0xFF4A90D9),

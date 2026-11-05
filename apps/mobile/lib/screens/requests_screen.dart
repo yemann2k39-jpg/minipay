@@ -163,15 +163,16 @@ class _RequestsScreenState extends State<RequestsScreen> {
       });
       if (!mounted) return;
       final nav = Navigator.of(context);
-      await nav.pushReplacement(MaterialPageRoute(
+      // Return to home first, then show success on top — Done pops to home
+      // (consistent with transfers and payments).
+      nav.popUntil((route) => route.isFirst);
+      nav.push(MaterialPageRoute(
         builder: (_) => SuccessScreen(
           title: 'Request sent',
           amountText: _money(cents),
           subtitleLines: ['To ${email.text.trim()}'],
-          onPrimary: () => Navigator.of(context).pop(),
         ),
       ));
-      if (mounted) _load();
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -267,13 +268,13 @@ class _RequestsScreenState extends State<RequestsScreen> {
           .post('/requests/${r.id}/pay', data: {'pin': pin});
       if (!mounted) return;
       final nav = Navigator.of(context);
+      // Return to home first, then show success on top — Done pops to home.
       nav.popUntil((route) => route.isFirst);
-      nav.pushReplacement(MaterialPageRoute(
+      nav.push(MaterialPageRoute(
         builder: (_) => SuccessScreen(
           title: 'Payment successful',
           amountText: _money(r.amountMinor),
           subtitleLines: ['To ${r.counterparty}'],
-          onPrimary: () => Navigator.of(context).pop(),
         ),
       ));
     } catch (e) {
@@ -340,6 +341,39 @@ class _RequestsScreenState extends State<RequestsScreen> {
     final d = cents ~/ 100;
     final r = (cents % 100).toString().padLeft(2, '0');
     return 'S\$$d.$r';
+  }
+
+  /// Colored status chip so PAID / DECLINED / CANCELLED / PENDING are
+  /// distinguishable at a glance.
+  Widget _statusChip(String status) {
+    final (Color bg, Color border, Color fg) = switch (status) {
+      'PAID' => (
+          const Color(0xFFE5F6EC),
+          const Color(0xFFBFE6CF),
+          const Color(0xFF1B7F4B),
+        ),
+      'DECLINED' || 'CANCELLED' || 'FAILED' => (
+          const Color(0xFFFDECEA),
+          const Color(0xFFF3C1BC),
+          const Color(0xFFB71C1C),
+        ),
+      _ => (
+          const Color(0xFFFDF1E0),
+          const Color(0xFFF3D9AE),
+          const Color(0xFFB26A00),
+        ), // PENDING
+    };
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: border),
+      ),
+      child: Text(status,
+          style: TextStyle(
+              fontSize: 11, fontWeight: FontWeight.w600, color: fg)),
+    );
   }
 
   @override
@@ -418,10 +452,7 @@ class _RequestsScreenState extends State<RequestsScreen> {
                               color: Colors.grey, fontSize: 12)),
                     ),
                   const SizedBox(height: 8),
-                  Text('Status: ${r.status}',
-                      style: TextStyle(
-                          fontSize: 12,
-                          color: pending ? Colors.orange : Colors.grey)),
+                  _statusChip(r.status),
                   if (pending && incoming) ...[
                     const SizedBox(height: 10),
                     Row(

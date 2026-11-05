@@ -10,6 +10,8 @@ import { TransfersModule } from './transfers/transfers.module';
 import { RequestsModule } from './requests/requests.module';
 import { SplitModule } from './split/split.module';
 import { AdminModule } from './admin/admin.module';
+import { MerchantApiModule } from './merchant-api/merchant-api.module';
+import { CheckoutModule } from './checkout/checkout.module';
 
 @Module({
   imports: [
@@ -24,6 +26,8 @@ import { AdminModule } from './admin/admin.module';
     RequestsModule,
     SplitModule,
     AdminModule,
+    MerchantApiModule,
+    CheckoutModule,
   ],
 })
 export class AppModule {}

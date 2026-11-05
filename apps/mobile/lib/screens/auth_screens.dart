@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:minipay/api/api_client.dart';
 import 'package:minipay/screens/home_screen.dart';
 
@@ -163,8 +163,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _formKey = GlobalKey<FormState>();
   final _email = TextEditingController();
   final _name = TextEditingController();
+  final _businessName = TextEditingController();
   final _password = TextEditingController();
   final _confirm = TextEditingController();
+  bool _isBusiness = false; // PGW-24: personal | business account
   bool _loading = false;
   String? _error;
 
@@ -184,11 +186,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
       _error = null;
     });
     try {
-      final res = await ApiClient.instance.dio.post('/auth/register', data: {
-        'email': _email.text.trim(),
-        'password': _password.text,
-        'displayName': _name.text.trim(),
-      });
+      // Business mode creates the same user account plus the shop
+      // (register-business); personal mode is the plain register endpoint.
+      final res = await ApiClient.instance.dio.post(
+          _isBusiness ? '/auth/register-business' : '/auth/register',
+          data: {
+            'email': _email.text.trim(),
+            'password': _password.text,
+            'displayName': _name.text.trim(),
+            if (_isBusiness) 'businessName': _businessName.text.trim(),
+          });
       await ApiClient.instance.saveSession(
         accessToken: res.data['accessToken'] as String,
         refreshToken: res.data['refreshToken'] as String,
@@ -217,17 +224,50 @@ class _RegisterScreenState extends State<RegisterScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                // Account type (PGW-24): business signup adds a shop to the
+                // same user account.
+                SegmentedButton<bool>(
+                  segments: const [
+                    ButtonSegment(
+                        value: false,
+                        icon: Icon(Icons.person_outline),
+                        label: Text('Personal')),
+                    ButtonSegment(
+                        value: true,
+                        icon: Icon(Icons.storefront),
+                        label: Text('Business')),
+                  ],
+                  selected: {_isBusiness},
+                  onSelectionChanged: (selection) =>
+                      setState(() => _isBusiness = selection.first),
+                ),
+                const SizedBox(height: 16),
                 TextFormField(
                   controller: _name,
                   textCapitalization: TextCapitalization.words,
-                  decoration: const InputDecoration(
-                    labelText: 'Display name',
-                    prefixIcon: Icon(Icons.person_outline),
-                    border: OutlineInputBorder(),
+                  decoration: InputDecoration(
+                    labelText:
+                        _isBusiness ? 'Your name (owner)' : 'Display name',
+                    prefixIcon: const Icon(Icons.person_outline),
+                    border: const OutlineInputBorder(),
                   ),
                   validator: (v) =>
                       v != null && v.trim().length >= 2 ? null : 'At least 2 characters',
                 ),
+                if (_isBusiness) ...[
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _businessName,
+                    textCapitalization: TextCapitalization.words,
+                    decoration: const InputDecoration(
+                      labelText: 'Business name',
+                      prefixIcon: Icon(Icons.storefront),
+                      border: OutlineInputBorder(),
+                    ),
+                    validator: (v) =>
+                        v != null && v.trim().length >= 2 ? null : 'At least 2 characters',
+                  ),
+                ],
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _email,
