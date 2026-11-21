@@ -4,47 +4,47 @@ NestJS REST API for the MiniPay wallet and merchant payment gateway. This servic
 
 ## Modules
 
-| Module        | Responsibility |
-|---------------|----------------|
-| `auth`        | JWT access + rotating refresh-token sessions (hashed, device metadata), bcrypt passwords, 6-digit payment PINs (set/change/reset), profile, preferences (daily spend limit) |
-| `wallet`      | Balance, paginated history, monthly report, Stripe PaymentIntent deposits (webhook is the single credit writer) |
-| `ledger`      | Double-entry engine: idempotent journal posting, advisory locks, balance queries, `GET /ledger/invariant` |
-| `transfers`   | P2P transfers with server-enforced daily spend limits |
-| `contacts`    | Contact management + email lookup for transfers |
-| `requests`    | Money requests (pay / decline / cancel) |
-| `split`       | AI receipt scanning (Gemini) + bill splitting with share requests |
-| `merchants`   | Merchant mode: collect-payment sessions, sales history, refunds, payouts (withdraw to wallet), API key management |
-| `merchant-api`| Public hosted-checkout REST API (X-API-Key auth) |
-| `checkout`    | Checkout sessions, hosted checkout page, in-app/web payment |
-| `payments`    | Merchant QR payments + Stripe webhook (signature-verified) |
-| `notifications` | Money-event notifications (bell + unread counts) |
-| `admin`       | Platform management: users, merchants, transactions, stats (ADMIN role) |
+- auth — JWT access tokens with rotating refresh sessions, bcrypt passwords, 6-digit payment PINs (set, change, reset), profile and preferences including the daily spend limit
+- wallet — balance, paginated history, monthly report, Stripe PaymentIntent deposits
+- ledger — double-entry engine: idempotent journal posting, advisory locks, balance queries, and the invariant check
+- transfers — P2P transfers with server-enforced daily spend limits
+- contacts — contact management and email lookup
+- requests — money requests with pay, decline, and cancel paths
+- split — receipt scanning and bill splitting with share requests
+- merchants — merchant mode: collect-payment sessions, sales history, refunds, payouts, API key management
+- merchant-api — public hosted-checkout REST API authenticated with API keys
+- checkout — checkout sessions, hosted checkout page, in-app and web payment
+- payments — merchant QR payments and the Stripe webhook
+- notifications — money-event notifications with unread counts
+- admin — platform management for users, merchants, transactions, and stats
 
 ## Setup
 
-```bash
+Requires PostgreSQL from the repo root docker-compose file.
+
+```
 pnpm install
-npx prisma db push        # requires PostgreSQL from repo-root docker-compose
-pnpm start:dev            # http://localhost:3000
+npx prisma db push
+pnpm start:dev
 ```
 
-Environment variables (`.env`): `DATABASE_URL`, `JWT_SECRET`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `GEMINI_API_KEY` (optional).
+Environment variables in `.env`: `DATABASE_URL`, `JWT_SECRET`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, and optionally `GEMINI_API_KEY` for receipt scanning.
 
 ## Verification
 
-```bash
-npx jest                              # unit tests
-curl localhost:3000/ledger/invariant  # books balance check (admin JWT)
-node scripts/verify-checkout.js       # end-to-end gateway flow
+```
+npx jest
 ```
 
-## Notable Implementation Details
+`GET /ledger/invariant` returns `ok: true` when every journal entry balances. `node scripts/verify-checkout.js` runs the full gateway flow end to end, including HMAC callback verification.
 
-- **Idempotency keys** on every ledger post (`tx_<id>`, `pi_<paymentIntentId>`) make retries safe.
-- **Sorted advisory locks** per account prevent deadlocks between concurrent journal writes.
-- **Deposits** are credited only by the signature-verified `payment_intent.succeeded` webhook — the raw request body is preserved for HMAC verification.
-- **Refunds** flip the sale `PAID → REFUNDED` with one conditional update; ledger failure rolls the claim back.
-- **Frozen accounts** are receive-only, enforced at the endpoint level.
-- `merchants/:code/qr.png` renders the collect-payment QR server-side.
+## Implementation notes
 
-See the repo root README for architecture and the full stack overview.
+- Every ledger post carries an idempotency key derived from the transaction or payment intent, so retries are safe.
+- Advisory locks are taken per account in sorted order to prevent deadlocks between concurrent journal writes.
+- Deposits are credited only by the signature-verified webhook; the raw request body is preserved for HMAC verification.
+- Refunds flip a sale from PAID to REFUNDED with a single conditional update. If the ledger write fails, the claim rolls back.
+- Frozen accounts are receive-only, enforced at the endpoint level.
+- Merchant collect-payment QR codes are rendered server-side at `merchants/:code/qr.png`.
+
+See the root README for the architecture overview and the full tech stack.
