@@ -15,6 +15,9 @@ import 'package:minipay/screens/scan_pay_screen.dart';
 import 'package:minipay/screens/split_screen.dart';
 import 'package:minipay/screens/transaction_detail_screen.dart';
 import 'package:minipay/screens/transfer_screen.dart';
+import 'package:minipay/screens/personal_qr_screen.dart';
+import 'package:minipay/screens/security_screen.dart';
+import 'package:minipay/services/local_notify.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key, this.embedPersonal = false});
@@ -63,6 +66,8 @@ class _HomeScreenState extends State<HomeScreen> {
           await ApiClient.instance.dio.get('/notifications/unread-count');
       if (!mounted) return;
       setState(() => _unread = unread.data['count'] as int);
+      // Surface new money events as system notifications (PGW-25).
+      await LocalNotify.instance.syncFromServer();
     } catch (_) {}
   }
 
@@ -124,45 +129,6 @@ class _HomeScreenState extends State<HomeScreen> {
         MaterialPageRoute(builder: (_) => const AuthGate()), (r) => false);
   }
 
-  Future<void> _showSettingsSheet() async {
-    final enabled = await ApiClient.instance.readAppLockEnabled();
-    if (!mounted) return;
-    await showModalBottomSheet<void>(
-      context: context,
-      builder: (sheetContext) {
-        bool value = enabled;
-        return StatefulBuilder(
-          builder: (sheetContext, setSheetState) => Padding(
-            padding: const EdgeInsets.fromLTRB(24, 24, 24, 32),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Settings',
-                    style: Theme.of(sheetContext)
-                        .textTheme
-                        .titleMedium
-                        ?.copyWith(fontWeight: FontWeight.bold)),
-                const SizedBox(height: 8),
-                SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('App lock'),
-                  subtitle: const Text(
-                      'Require fingerprint or PIN each time you open MiniPay'),
-                  value: value,
-                  onChanged: (v) async {
-                    setSheetState(() => value = v);
-                    await ApiClient.instance.saveAppLockEnabled(v);
-                  },
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     if (_loading) {
@@ -177,6 +143,13 @@ class _HomeScreenState extends State<HomeScreen> {
       appBar: AppBar(
         title: Text(_isMerchant ? 'My wallet' : 'MiniPay'),
         actions: [
+          // Receive money via personal QR (PGW-28).
+          IconButton(
+            icon: const Icon(Icons.qr_code_2),
+            tooltip: 'My QR — receive money',
+            onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const PersonalQrScreen())),
+          ),
           if (_isMerchant)
             IconButton(
               icon: const Icon(Icons.storefront),
@@ -191,8 +164,9 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           IconButton(
             icon: const Icon(Icons.settings_outlined),
-            tooltip: 'Settings',
-            onPressed: _showSettingsSheet,
+            tooltip: 'Profile & security',
+            onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const SecurityScreen())),
           ),
           IconButton(
             icon: Badge(

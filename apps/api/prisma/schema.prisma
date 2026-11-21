@@ -23,6 +23,8 @@ model User {
   displayName  String
   passwordHash String
   pinHash      String?
+  // Daily outgoing-transfer limit in minor units; null = no limit (PGW-29).
+  dailySpendLimitMinor Int?
   role         String     @default("USER") // USER | ADMIN | MERCHANT
   status       UserStatus @default(ACTIVE)
   createdAt    DateTime   @default(now())
@@ -61,6 +63,9 @@ model RefreshToken {
   userId    String   @db.Uuid
   expiresAt DateTime
   revokedAt DateTime?
+  // Device metadata captured at issue time (PGW-31 session list).
+  userAgent String?
+  ip        String?
   createdAt DateTime @default(now())
 
   @@index([userId])

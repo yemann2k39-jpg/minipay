@@ -25,6 +25,13 @@ export class MerchantsController {
     return this.merchants.getOwnedMerchant(userId);
   }
 
+  /** Merchant-mode insights (PGW-27). */
+  @Get('mine/insights')
+  @UseGuards(JwtAuthGuard)
+  insights(@CurrentUser('userId') userId: string) {
+    return this.merchants.getOwnedMerchantInsights(userId);
+  }
+
   /** Merchant-mode collect payment (PGW-19): create a QR-payable session. */
   @Post('mine/collect')
   @UseGuards(JwtAuthGuard)

@@ -407,6 +407,54 @@ export class MerchantsService {
     };
   }
 
+  /** Merchant-mode insights (PGW-27): today/week totals + 7-day buckets. */
+  async getOwnedMerchantInsights(userId: string) {
+    const m = await this.prisma.merchant.findFirst({
+      where: { ownerUserId: userId },
+      select: { id: true, name: true },
+    });
+    if (!m) throw new NotFoundException('No merchant account linked to this user');
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const weekAgo = new Date(startOfToday.getTime() - 6 * 24 * 60 * 60 * 1000);
+    // A sale is a checkout session that reached PAID (refunds included as
+    // gross sales; refunded amounts reported separately).
+    const recent = await this.prisma.checkoutSession.findMany({
+      where: {
+        merchantId: m.id,
+        status: { in: ['PAID', 'REFUNDED'] },
+        paidAt: { gte: weekAgo },
+      },
+      select: { amountMinor: true, status: true, paidAt: true },
+    });
+    const sum = (rows: { amountMinor: bigint }[]) =>
+      rows.reduce((s, r) => s + r.amountMinor, 0n).toString();
+    const today = recent.filter((r) => r.paidAt && r.paidAt >= startOfToday);
+    const refundedWeek = recent.filter((r) => r.status === 'REFUNDED');
+    // 7-day buckets, oldest first.
+    const days: { date: string; totalMinor: string; count: number }[] = [];
+    for (let i = 6; i >= 0; i--) {
+      const dayStart = new Date(startOfToday.getTime() - i * 24 * 60 * 60 * 1000);
+      const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+      const rows = recent.filter(
+        (r) => r.paidAt && r.paidAt >= dayStart && r.paidAt < dayEnd,
+      );
+      days.push({
+        date: dayStart.toISOString().slice(0, 10),
+        totalMinor: sum(rows),
+        count: rows.length,
+      });
+    }
+    return {
+      todayTotalMinor: sum(today),
+      todayCount: today.length,
+      weekTotalMinor: sum(recent),
+      weekCount: recent.length,
+      refundedWeekMinor: sum(refundedWeek),
+      days,
+    };
+  }
+
   /** Seed helper: create merchant + its ledger account if missing. */
   async ensureMerchant(code: string, name: string) {
     const existing = await this.prisma.merchant.findUnique({ where: { code } });

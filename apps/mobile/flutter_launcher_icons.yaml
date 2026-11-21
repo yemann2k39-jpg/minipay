@@ -1,0 +1,10 @@
+# MiniPay launcher icon (brand blue wallet + M mark, PGW-32 style).
+# Regenerate artwork with: tool\gen_icon.ps1
+# Apply with: dart run flutter_launcher_icons
+flutter_launcher_icons:
+  android: true
+  ios: false
+  image_path: "assets/icon/icon.png"
+  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_foreground: "assets/icon/foreground.png"
+  min_sdk_android: 21

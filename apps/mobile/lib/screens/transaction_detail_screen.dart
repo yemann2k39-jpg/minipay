@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:minipay/api/api_client.dart';
+import 'package:share_plus/share_plus.dart';
 
 /// Detail of one transaction, loaded from GET /wallet/transactions/:id.
 class TransactionDetailScreen extends StatefulWidget {
@@ -82,11 +83,42 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen> {
         content: Text('Copied'), behavior: SnackBarBehavior.floating));
   }
 
+  /// Shareable text receipt (PGW-26).
+  void _shareReceipt(Map<String, dynamic> t) {
+    final isIn = t['direction'] == 'IN';
+    final cents = int.tryParse('${t['amount']}') ?? 0;
+    final counterparty = t['counterparty'] as String?;
+    final buffer = StringBuffer()
+      ..writeln('MiniPay receipt')
+      ..writeln('----------------')
+      ..writeln('${_typeLabel(t['type'] as String)}'
+          ' (${isIn ? 'received' : 'sent'})')
+      ..writeln('Amount: ${_money(cents)}')
+      ..writeln('Status: ${t['status']}');
+    if (counterparty != null && counterparty.isNotEmpty) {
+      buffer.writeln('${isIn ? 'From' : 'To'}: $counterparty');
+    }
+    buffer
+      ..writeln('Date: ${_dateLabel(t['createdAt'] as String)}')
+      ..writeln('Ref: ${t['id'] ?? widget.transactionId}');
+    SharePlus.instance.share(ShareParams(text: buffer.toString()));
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
-      appBar: AppBar(title: const Text('Transaction')),
+      appBar: AppBar(
+        title: const Text('Transaction'),
+        actions: [
+          if (_tx != null)
+            IconButton(
+              icon: const Icon(Icons.share),
+              tooltip: 'Share receipt',
+              onPressed: () => _shareReceipt(_tx!),
+            ),
+        ],
+      ),
       body: SafeArea(
         top: false,
         child: _loading

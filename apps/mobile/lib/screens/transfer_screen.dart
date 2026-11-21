@@ -14,7 +14,10 @@ class _Recipient {
 /// Transfer money: type an email/phone (verified against the platform) or
 /// pick a contact below. Biometric payment if enrolled, otherwise PIN.
 class TransferScreen extends StatefulWidget {
-  const TransferScreen({super.key});
+  const TransferScreen({super.key, this.prefillEmail});
+
+  /// Personal-QR flow (PGW-28): recipient email preloaded from a scan.
+  final String? prefillEmail;
 
   @override
   State<TransferScreen> createState() => _TransferScreenState();
@@ -38,6 +41,11 @@ class _TransferScreenState extends State<TransferScreen> {
     super.initState();
     _loadContacts();
     _checkBiometric();
+    // Personal-QR flow: prefill the recipient and verify immediately.
+    if (widget.prefillEmail != null && widget.prefillEmail!.isNotEmpty) {
+      _recipientCtrl.text = widget.prefillEmail!;
+      WidgetsBinding.instance.addPostFrameCallback((_) => _lookup());
+    }
   }
 
   @override
@@ -239,6 +247,7 @@ class _TransferScreenState extends State<TransferScreen> {
       return;
     }
     setState(() => _recipientError = null);
+    if (!await _confirmSend(cents)) return;
     final ok = await _biometricAuth();
     if (!ok) return;
     final stored = _localPin ?? await ApiClient.instance.readLocalPin();
@@ -256,6 +265,42 @@ class _TransferScreenState extends State<TransferScreen> {
     }
   }
 
+  /// Confirm-before-send (PGW-29): recipient name + amount, one last look.
+  Future<bool> _confirmSend(int cents) async {
+    final dollars = cents ~/ 100;
+    final rem = (cents % 100).toString().padLeft(2, '0');
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Confirm transfer'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Send  S\$$dollars.$rem to',
+                style: const TextStyle(fontSize: 15)),
+            const SizedBox(height: 8),
+            Text(_recipient!.displayName,
+                style: const TextStyle(
+                    fontSize: 20, fontWeight: FontWeight.bold)),
+            if (_recipient!.email != null)
+              Text(_recipient!.email!,
+                  style: const TextStyle(color: Colors.grey, fontSize: 13)),
+          ],
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel')),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Send')),
+        ],
+      ),
+    );
+    return ok == true;
+  }
+
   void _openPinPad() {
     Navigator.of(context).push(MaterialPageRoute(
       builder: (_) => Scaffold(
@@ -270,13 +315,14 @@ class _TransferScreenState extends State<TransferScreen> {
     ));
   }
 
-  void _startSend() {
+  void _startSend() async {
     final cents = _amountCents;
     if (cents < 100 || cents > 500000) {
       setState(() =>
           _recipientError = 'Amount must be between SGD 1.00 and 5,000.00');
       return;
     }
+    if (!await _confirmSend(cents)) return;
     _openPinPad();
   }
 

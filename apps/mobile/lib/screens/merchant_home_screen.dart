@@ -8,8 +8,11 @@ import 'package:minipay/screens/collect_payment_screen.dart';
 import 'package:minipay/screens/home_screen.dart';
 import 'package:minipay/screens/integrations_screen.dart';
 import 'package:minipay/screens/merchant_sales_screen.dart';
+import 'package:minipay/screens/merchant_insights_screen.dart';
 import 'package:minipay/screens/notifications_screen.dart';
+import 'package:minipay/screens/security_screen.dart';
 import 'package:minipay/screens/pin_setup.dart';
+import 'package:minipay/services/local_notify.dart';
 import 'package:minipay/screens/withdraw_screen.dart';
 
 /// Merchant-mode home (PGW-18): shop balance, recent sales, and entry points
@@ -58,6 +61,8 @@ class _MerchantHomeScreenState extends State<MerchantHomeScreen> {
           await ApiClient.instance.dio.get('/notifications/unread-count');
       if (!mounted) return;
       setState(() => _unread = unread.data['count'] as int);
+      // Surface new sales/refunds as system notifications (PGW-25).
+      await LocalNotify.instance.syncFromServer();
     } catch (_) {}
   }
 
@@ -110,12 +115,6 @@ class _MerchantHomeScreenState extends State<MerchantHomeScreen> {
     if (!mounted) return;
     Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (_) => const AuthGate()), (r) => false);
-  }
-
-  void _showComingSoon(String feature) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('$feature is coming in the next update')),
-    );
   }
 
   void _showSaleDetails(Map<String, dynamic> sale) {
@@ -187,8 +186,9 @@ class _MerchantHomeScreenState extends State<MerchantHomeScreen> {
           ),
           IconButton(
             icon: const Icon(Icons.settings_outlined),
-            tooltip: 'Settings',
-            onPressed: () => _showComingSoon('Settings'),
+            tooltip: 'Profile & security',
+            onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const SecurityScreen())),
           ),
           IconButton(
             icon: Badge(
@@ -344,6 +344,15 @@ class _MerchantHomeScreenState extends State<MerchantHomeScreen> {
                           .titleMedium
                           ?.copyWith(fontWeight: FontWeight.bold)),
                   const Spacer(),
+                  // Sales insights (PGW-27).
+                  IconButton(
+                    icon: const Icon(Icons.bar_chart, size: 20),
+                    tooltip: 'Sales insights',
+                    onPressed: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                            builder: (_) =>
+                                const MerchantInsightsScreen())),
+                  ),
                   TextButton(
                     onPressed: () => Navigator.of(context).push(
                         MaterialPageRoute(

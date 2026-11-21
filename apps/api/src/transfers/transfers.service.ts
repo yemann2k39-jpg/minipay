@@ -73,6 +73,32 @@ export class TransfersService {
       this.walletOf(toUserId),
     ]);
 
+    // Daily spend limit (PGW-29): server-enforced, counts completed/pending
+    // outgoing transfers since local midnight.
+    if (sender?.dailySpendLimitMinor != null) {
+      const startOfDay = new Date();
+      startOfDay.setHours(0, 0, 0, 0);
+      const rows = await this.prisma.transaction.findMany({
+        where: {
+          type: TransactionType.TRANSFER,
+          fromAccountId: fromWallet.id,
+          createdAt: { gte: startOfDay },
+          status: { in: [TransactionStatus.PENDING, TransactionStatus.COMPLETED] },
+        },
+        select: { amount: true },
+      });
+      const spent = rows.reduce((sum, r) => sum + r.amount, 0n);
+      const limit = BigInt(sender.dailySpendLimitMinor);
+      if (spent + amount > limit) {
+        const remaining = spent >= limit ? 0n : limit - spent;
+        throw new BadRequestException(
+          `Daily transfer limit reached — SGD ${(Number(limit) / 100).toFixed(2)}/day, ` +
+            `SGD ${(Number(remaining) / 100).toFixed(2)} left today. ` +
+            `You can raise it in Settings.`,
+        );
+      }
+    }
+
     const tx = await this.prisma.transaction.create({
       data: {
         type: TransactionType.TRANSFER,

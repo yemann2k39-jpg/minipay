@@ -4,6 +4,7 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:minipay/api/api_client.dart';
 import 'package:minipay/screens/checkout_confirm_screen.dart';
 import 'package:minipay/screens/success_screen.dart';
+import 'package:minipay/screens/transfer_screen.dart';
 import 'package:minipay/widgets/pin_entry_pad.dart';
 
 /// Scans a merchant QR and takes the user through confirmation.
@@ -40,6 +41,19 @@ class _ScanPayScreenState extends State<ScanPayScreen> {
         Navigator.of(context)
             .push(MaterialPageRoute(
               builder: (_) => CheckoutConfirmScreen(checkoutId: checkoutId),
+            ))
+            .then((_) => _controller.start());
+        return;
+      }
+      // Personal receive-money QR (PGW-28): minipay://user/<email>
+      if (uri.host == 'user') {
+        final email = uri.path.replaceFirst('/', '').trim();
+        if (email.isEmpty) continue;
+        _controller.stop();
+        if (!mounted) return;
+        Navigator.of(context)
+            .push(MaterialPageRoute(
+              builder: (_) => TransferScreen(prefillEmail: email),
             ))
             .then((_) => _controller.start());
         return;
@@ -95,7 +109,7 @@ class _ScanPayScreenState extends State<ScanPayScreen> {
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Text(
-                  'Point the camera at a MiniPay merchant QR code',
+                  'Point the camera at a MiniPay QR code (merchant or personal)',
                   style: TextStyle(color: Colors.white),
                   textAlign: TextAlign.center,
                 ),

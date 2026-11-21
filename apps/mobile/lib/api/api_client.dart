@@ -79,6 +79,20 @@ class ApiClient {
     await _storage.write(key: 'app_lock_$uid', value: enabled ? 'true' : 'false');
   }
 
+  /// Cursor for system notifications (PGW-25): ISO timestamp of the newest
+  /// notification already shown as a system notification, per user.
+  Future<String?> readNotifCursor() async {
+    final uid = await currentUserId;
+    if (uid == null) return null;
+    return _storage.read(key: 'notif_cursor_$uid');
+  }
+
+  Future<void> saveNotifCursor(String iso) async {
+    final uid = await currentUserId;
+    if (uid == null) return;
+    await _storage.write(key: 'notif_cursor_$uid', value: iso);
+  }
+
   /// Verifies a PIN against the server session. Throws [ApiException] on
   /// rejection (wrong PIN / dead session) or network problems.
   Future<void> verifyPin(String pin) async {
